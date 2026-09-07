@@ -15,6 +15,12 @@ jobs:
 
     steps:
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformRole
+          aws-region: us-east-2
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
