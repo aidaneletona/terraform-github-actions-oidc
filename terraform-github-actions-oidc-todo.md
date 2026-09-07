@@ -169,10 +169,10 @@ Learn how Terraform remembers deployed infrastructure.
 - [x] Enable versioning on the state bucket
 - [x] Enable encryption on the state bucket
 - [x] Block public access to the state bucket
-- [ ] Configure Terraform to use the remote backend
-- [ ] Run `terraform init` after changing the backend
-- [ ] Confirm state is stored remotely
-- [ ] Confirm `terraform.tfstate` is not committed to GitHub
+- [x] Configure Terraform to use the remote backend
+- [x] Run `terraform init` after changing the backend
+- [x] Confirm state is stored remotely
+- [x] Confirm `terraform.tfstate` is not committed to GitHub
 
 ---
 
@@ -186,18 +186,18 @@ Create:
 
 Start with validation only.
 
-- [ ] Trigger the workflow on pull requests
-- [ ] Trigger the workflow on pushes to the main branch
-- [ ] Add a manual `workflow_dispatch` trigger if useful
-- [ ] Check out the repository
-- [ ] Install/setup Terraform
-- [ ] Run `terraform fmt -check`
-- [ ] Run `terraform init`
-- [ ] Run `terraform validate`
-- [ ] Confirm the workflow succeeds
-- [ ] Deliberately introduce a formatting or Terraform error
-- [ ] Confirm the workflow fails
-- [ ] Fix the error
+- [x] Trigger the workflow on pull requests
+- [x] Trigger the workflow on pushes to the main branch
+- [x] Add a manual `workflow_dispatch` trigger if useful
+- [x] Check out the repository
+- [x] Install/setup Terraform
+- [x] Run `terraform fmt -check`
+- [x] Run `terraform init`
+- [x] Run `terraform validate`
+- [x] Confirm the workflow succeeds
+- [x] Deliberately introduce a formatting or Terraform error
+- [x] Confirm the workflow fails
+- [x] Fix the error
 - [ ] Confirm the workflow succeeds again
 
 ---
