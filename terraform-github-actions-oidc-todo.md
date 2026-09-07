@@ -198,7 +198,7 @@ Start with validation only.
 - [x] Deliberately introduce a formatting or Terraform error
 - [x] Confirm the workflow fails
 - [x] Fix the error
-- [ ] Confirm the workflow succeeds again
+- [x] Confirm the workflow succeeds again
 
 ---
 
@@ -240,19 +240,19 @@ AWS STS
 Temporary AWS Credentials
 ```
 
-- [ ] Understand what OIDC is at a basic level
-- [ ] Understand what AWS STS does
-- [ ] Understand the difference between an IAM user and IAM role
-- [ ] Understand why temporary credentials are preferable to permanent access keys
+- [x] Understand what OIDC is at a basic level
+- [x] Understand what AWS STS does
+- [x] Understand the difference between an IAM user and IAM role
+- [x] Understand why temporary credentials are preferable to permanent access keys
 
 ---
 
 # Phase 8 — Configure GitHub OIDC in AWS
 
-- [ ] Configure GitHub as an OIDC identity provider in AWS IAM if required
-- [ ] Use GitHub's OIDC provider URL
-- [ ] Create an IAM role for GitHub Actions
-- [ ] Give the role a clear name
+- [x] Configure GitHub as an OIDC identity provider in AWS IAM if required
+- [x] Use GitHub's OIDC provider URL
+- [x] Create an IAM role for GitHub Actions
+- [x] Give the role a clear name
 
 Example:
 
@@ -260,13 +260,13 @@ Example:
 GitHubActionsTerraformRole
 ```
 
-- [ ] Configure the role trust policy
-- [ ] Allow the GitHub OIDC provider to assume the role
-- [ ] Restrict the trust policy to your GitHub organization/user
-- [ ] Restrict it to your repository
-- [ ] Restrict branches/environments where appropriate
-- [ ] Avoid allowing every GitHub repository to assume the role
-- [ ] Record the role ARN for GitHub Actions
+- [x] Configure the role trust policy
+- [x] Allow the GitHub OIDC provider to assume the role
+- [x] Restrict the trust policy to your GitHub organization/user
+- [x] Restrict it to your repository
+- [x] Restrict branches/environments where appropriate
+- [x] Avoid allowing every GitHub repository to assume the role
+- [x] Record the role ARN for GitHub Actions
 
 ---
 
@@ -274,12 +274,12 @@ GitHubActionsTerraformRole
 
 Be able to explain the trust relationship.
 
-- [ ] Identify the `Principal`
-- [ ] Identify `sts:AssumeRoleWithWebIdentity`
-- [ ] Understand the GitHub token `aud` condition
-- [ ] Understand the GitHub token `sub` condition
-- [ ] Understand how the `sub` condition limits which repository can assume the role
-- [ ] Understand how branch or environment restrictions can further limit access
+- [x] Identify the `Principal`
+- [x] Identify `sts:AssumeRoleWithWebIdentity`
+- [x] Understand the GitHub token `aud` condition
+- [x] Understand the GitHub token `sub` condition
+- [x] Understand how the `sub` condition limits which repository can assume the role
+- [x] Understand how branch or environment restrictions can further limit access
 
 Be able to explain:
 
@@ -291,13 +291,13 @@ Be able to explain:
 
 Do not automatically give the GitHub Actions role `AdministratorAccess`.
 
-- [ ] Determine which AWS APIs your Terraform configuration actually requires
-- [ ] Create an IAM permissions policy for the deployment role
-- [ ] Allow access only to required AWS services/actions
-- [ ] Restrict resources where practical
-- [ ] Attach the policy to the GitHub Actions role
+- [x] Determine which AWS APIs your Terraform configuration actually requires
+- [x] Create an IAM permissions policy for the deployment role
+- [x] Allow access only to required AWS services/actions
+- [x] Restrict resources where practical
+- [x] Attach the policy to the GitHub Actions role
 - [ ] Test the permissions
-- [ ] Remove unnecessary permissions
+- [x] Remove unnecessary permissions
 - [ ] Document why each major permission is required
 
 The project should demonstrate two different IAM concepts:
