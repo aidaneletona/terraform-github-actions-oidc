@@ -4,6 +4,7 @@ resource "aws_s3_bucket" "demo" {
     Name : var.demo_name
     Project : var.project
     Environment : var.environment
+    Purpose: var.demo_purpose
   }
 }
 
@@ -45,6 +46,7 @@ resource "aws_s3_bucket" "state" {
     Name : var.state_name
     Project : var.project
     Environment : var.environment
+    Purpose: var.state_purpose
   }
 }
 

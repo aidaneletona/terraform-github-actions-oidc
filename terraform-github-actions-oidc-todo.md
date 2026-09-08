@@ -353,8 +353,7 @@ AWS resources
 # Phase 12 — Terraform Plan in GitHub Actions
 
 - [x] Run `terraform plan`in GitHub Actions
-- [ ] Confirm the plan works using OIDC credentials
-- [ ] Confirm the workflow does not require an AWS access key
+- [x] Confirm the plan works using OIDC credentials
 - [ ] Make a small infrastructure change
 - [ ] Push the change
 - [ ] Confirm the Terraform plan detects it
