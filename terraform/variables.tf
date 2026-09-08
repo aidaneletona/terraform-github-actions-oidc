@@ -35,7 +35,7 @@ variable "demo_name" {
 
 variable "demo_purpose" {
   type    = string
-  default = "Terraform Demo"
+  default = "Terraform Demo Bucket"
 }
 
 # -----------------------------------------------------------------------------
