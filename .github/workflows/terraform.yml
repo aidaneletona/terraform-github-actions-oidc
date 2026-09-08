@@ -4,6 +4,10 @@ permissions:
 
 on:
   pull_request:
+    - name: Terraform Validate
+      run: terraform -chdir=terraform validate
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
   push:
     branches:
       - main

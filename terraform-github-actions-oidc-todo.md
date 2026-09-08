@@ -354,10 +354,10 @@ AWS resources
 
 - [x] Run `terraform plan`in GitHub Actions
 - [x] Confirm the plan works using OIDC credentials
-- [ ] Make a small infrastructure change
-- [ ] Push the change
-- [ ] Confirm the Terraform plan detects it
-- [ ] Review the plan before applying
+- [x] Make a small infrastructure change
+- [x] Push the change
+- [x] Confirm the Terraform plan detects it
+- [x] Review the plan before applying
 
 ---
 
@@ -383,9 +383,9 @@ Main Branch
 terraform apply
 ```
 
-- [ ] Run formatting/validation on pull requests
+- [x] Run formatting/validation on pull requests
 - [ ] Run Terraform plan on pull requests
-- [ ] Prevent automatic apply from untrusted pull requests
+- [x] Prevent automatic apply from untrusted pull requests
 - [ ] Configure apply only from the main branch
 - [ ] Consider using a GitHub Environment for deployment
 - [ ] Add manual approval for production deployment if available
