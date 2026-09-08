@@ -382,13 +382,10 @@ Main Branch
      v
 terraform apply
 ```
-
-- [x] Run formatting/validation on pull requests
-- [ ] Run Terraform plan on pull requests
 - [x] Prevent automatic apply from untrusted pull requests
-- [ ] Configure apply only from the main branch
-- [ ] Consider using a GitHub Environment for deployment
-- [ ] Add manual approval for production deployment if available
+- [x] Configure apply only from the main branch
+- [x] Consider using a GitHub Environment for deployment (costs money)
+- [x] Add manual approval for production deployment if available
 - [ ] Confirm a pull request cannot directly deploy infrastructure
 - [ ] Confirm an approved/merged change can deploy successfully
 

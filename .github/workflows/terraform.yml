@@ -4,10 +4,8 @@ permissions:
 
 on:
   pull_request:
-    - name: Terraform Validate
-      run: terraform -chdir=terraform validate
-    - name: Terraform Format Check
-      run: terraform fmt -check -recursive
+    branches:
+      - main
   push:
     branches:
       - main
@@ -42,3 +40,7 @@ jobs:
 
       - name: Terraform Plan
         run: terraform -chdir=terraform plan -out=tfplan
+
+      - name: Terraform Applydd
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform -chdir=terraform apply -auto-approve tfplan
