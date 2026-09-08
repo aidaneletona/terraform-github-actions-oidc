@@ -300,9 +300,8 @@ Do not automatically give the GitHub Actions role `AdministratorAccess`.
 - [x] Allow access only to required AWS services/actions
 - [x] Restrict resources where practical
 - [x] Attach the policy to the GitHub Actions role
-- [ ] Test the permissions
+- [x] Test the permissions
 - [x] Remove unnecessary permissions
-- [ ] Document why each major permission is required
 
 The project should demonstrate two different IAM concepts:
 
@@ -315,7 +314,7 @@ The project should demonstrate two different IAM concepts:
 
 In the GitHub Actions workflow:
 
-- [ ] Add the required GitHub token permission:
+- [x] Add the required GitHub token permission:
 
 ```yaml
 permissions:
@@ -323,14 +322,14 @@ permissions:
   contents: read
 ```
 
-- [ ] Configure AWS credentials using OIDC
-- [ ] Reference the IAM role ARN
-- [ ] Configure the AWS region
-- [ ] Do not add permanent AWS access keys
-- [ ] Run the workflow
-- [ ] Confirm GitHub successfully assumes the AWS role
-- [ ] Confirm AWS issues temporary credentials
-- [ ] Confirm Terraform can access AWS
+- [x] Configure AWS credentials using OIDC
+- [x] Reference the IAM role ARN
+- [x] Configure the AWS region
+- [x] Do not add permanent AWS access keys
+- [x] Run the workflow
+- [x] Confirm GitHub successfully assumes the AWS role
+- [x] Confirm AWS issues temporary credentials
+- [x] Confirm Terraform can access AWS
 
 At this point:
 
@@ -353,9 +352,7 @@ AWS resources
 
 # Phase 12 — Terraform Plan in GitHub Actions
 
-- [ ] Run `terraform init` in GitHub Actions
-- [ ] Run `terraform validate`
-- [ ] Run `terraform plan`
+- [x] Run `terraform plan`in GitHub Actions
 - [ ] Confirm the plan works using OIDC credentials
 - [ ] Confirm the workflow does not require an AWS access key
 - [ ] Make a small infrastructure change
@@ -557,6 +554,7 @@ Your final README should include:
 - [ ] AWS STS explanation
 - [ ] IAM trust policy explanation
 - [ ] IAM permissions policy explanation
+- [ ] Document why each major permission is required
 - [ ] Remote state design
 - [ ] Pipeline workflow
 - [ ] Security controls

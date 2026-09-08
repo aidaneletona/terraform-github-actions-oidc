@@ -35,3 +35,6 @@ jobs:
       
       - name: Terraform Validate
         run: terraform -chdir=terraform validate
+
+      - name: Terraform Plan
+        run: terraform -chdir=terraform plan -out=tfplan
