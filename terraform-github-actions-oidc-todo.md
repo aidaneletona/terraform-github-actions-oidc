@@ -430,7 +430,7 @@ You do not need to build a huge environment.
 - [x] Avoid unrestricted SSH/RDP
 - [x] Add useful resource tags
 - [x] Keep resources modular and understandable
-- [ ] Run the full deployment through GitHub Actions
+- [x] Run the full deployment through GitHub Actions
 
 ---
 
@@ -438,9 +438,9 @@ You do not need to build a huge environment.
 
 Once the basic deployment works:
 
-- [ ] Move related resources into a Terraform module
-- [ ] Create module inputs
-- [ ] Create module outputs
+- [x] Move related resources into a Terraform module
+- [x] Create module inputs
+- [x] Create module outputs
 - [ ] Call the module from the root configuration
 - [ ] Run `terraform validate`
 - [ ] Run `terraform plan`
