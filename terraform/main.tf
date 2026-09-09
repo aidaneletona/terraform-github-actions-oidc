@@ -74,3 +74,9 @@ resource "aws_s3_bucket_public_access_block" "state" {
   restrict_public_buckets = true
 }
 
+module "network" {
+  source = "./modules/network"
+
+  project     = var.project
+  environment = var.environment
+}
