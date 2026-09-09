@@ -384,6 +384,7 @@ terraform apply
 ```
 - [x] Prevent automatic apply from untrusted pull requests
 - [x] Configure apply only from the main branch
+- [ ] Require pull request checks to pass before merging
 - [x] Consider using a GitHub Environment for deployment (costs money)
 - [x] Add manual approval for production deployment if available
 - [x] Confirm a pull request cannot directly deploy infrastructure
