@@ -384,7 +384,7 @@ terraform apply
 ```
 - [x] Prevent automatic apply from untrusted pull requests
 - [x] Configure apply only from the main branch
-- [ ] Require pull request checks to pass before merging
+- [x] Require pull request checks to pass before merging
 - [x] Consider using a GitHub Environment for deployment (costs money)
 - [x] Add manual approval for production deployment if available
 - [x] Confirm a pull request cannot directly deploy infrastructure
@@ -396,15 +396,15 @@ terraform apply
 
 The GitHub Actions role needs access to remote state.
 
-- [ ] Allow only required state-bucket permissions
-- [ ] Restrict access to the specific Terraform state bucket
-- [ ] Ensure the bucket is private
-- [ ] Ensure encryption is enabled
-- [ ] Ensure versioning is enabled
-- [ ] Ensure Public Access Block is enabled
-- [ ] Confirm GitHub Actions can read state
-- [ ] Confirm GitHub Actions can update state
-- [ ] Confirm unauthorized identities cannot access state
+- [x] Verify the role has only the permissions required to access Terraform remote state
+- [x] Verify remote-state permissions are restricted to the specific Terraform state bucket/state object
+- [x] Ensure the bucket is private
+- [x] Ensure encryption is enabled
+- [x] Ensure versioning is enabled
+- [x] Ensure Public Access Block is enabled
+- [x] Confirm GitHub Actions can read state
+- [x] Confirm GitHub Actions can update state
+- [x] Confirm an IAM identity without state permissions cannot access the Terraform state
 
 ---
 
@@ -423,13 +423,13 @@ Possible resources:
 
 You do not need to build a huge environment.
 
-- [ ] Add a VPC
-- [ ] Add subnets
-- [ ] Add route configuration as needed
-- [ ] Add a security group
-- [ ] Avoid unrestricted SSH/RDP
-- [ ] Add useful resource tags
-- [ ] Keep resources modular and understandable
+- [x] Add a VPC
+- [x] Add subnets
+- [x] Add route configuration as needed
+- [x] Add a security group
+- [x] Avoid unrestricted SSH/RDP
+- [x] Add useful resource tags
+- [x] Keep resources modular and understandable
 - [ ] Run the full deployment through GitHub Actions
 
 ---
