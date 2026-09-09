@@ -441,10 +441,10 @@ Once the basic deployment works:
 - [x] Move related resources into a Terraform module
 - [x] Create module inputs
 - [x] Create module outputs
-- [ ] Call the module from the root configuration
-- [ ] Run `terraform validate`
-- [ ] Run `terraform plan`
-- [ ] Confirm behavior is unchanged
+- [x] Call the module from the root configuration
+- [x] Run `terraform validate`
+- [x] Run `terraform plan`
+- [x] Confirm behavior is unchanged
 
 Do not modularize everything just for the sake of having modules. Use them where they make the configuration easier to organize or reuse.
 
@@ -452,17 +452,17 @@ Do not modularize everything just for the sake of having modules. Use them where
 
 # Phase 17 — Pipeline Hardening
 
-- [ ] Pin important GitHub Action versions
-- [ ] Keep workflow permissions minimal
-- [ ] Use `contents: read` unless write access is required
-- [ ] Give `id-token: write` only to jobs that require OIDC
-- [ ] Restrict the AWS trust policy to the correct repository
-- [ ] Restrict deployment to the correct branch/environment
-- [ ] Review third-party GitHub Actions before using them
-- [ ] Avoid printing credentials or sensitive Terraform values
-- [ ] Mark sensitive Terraform outputs appropriately
-- [ ] Verify no AWS access keys exist in GitHub secrets
-- [ ] Verify no AWS credentials are committed to Git
+- [x] Pin important GitHub Action versions
+- [x] Keep workflow permissions minimal
+- [x] Use `contents: read` unless write access is required
+- [x] Give `id-token: write` only to jobs that require OIDC
+- [x] Restrict the AWS trust policy to the correct repository
+- [x] Restrict deployment to the correct branch/environment
+- [x] Review third-party GitHub Actions in yml file before using them
+- [x] Avoid printing credentials or sensitive Terraform values
+- [x] Mark sensitive Terraform outputs appropriately
+- [x] Verify no AWS access keys exist in GitHub secrets
+- [x] Verify no AWS credentials are committed to Git
 
 ---
 
@@ -470,12 +470,12 @@ Do not modularize everything just for the sake of having modules. Use them where
 
 Do not only test the successful path.
 
-- [ ] Change the OIDC trust policy to an incorrect repository and confirm authentication fails
-- [ ] Restore the correct repository condition
-- [ ] Remove a required IAM permission and confirm Terraform fails
-- [ ] Restore the required permission
-- [ ] Introduce invalid Terraform syntax and confirm validation fails
-- [ ] Introduce bad formatting and confirm the formatting check fails
+- [x] Change the OIDC trust policy to an incorrect repository and confirm authentication fails
+- [x] Restore the correct repository condition
+- [x] Remove a required IAM permission and confirm Terraform fails
+- [x] Restore the required permission
+- [x] Introduce invalid Terraform syntax and confirm validation fails
+- [x] Introduce bad formatting and confirm the formatting check fails
 - [ ] Attempt deployment from an unauthorized branch if practical
 - [ ] Confirm deployment restrictions work
 - [ ] Document these failure tests
