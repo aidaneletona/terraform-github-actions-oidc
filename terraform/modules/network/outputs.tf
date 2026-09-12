@@ -34,6 +34,6 @@ output "security_group_id" {
   value = aws_security_group.main.id
 }
 
-output "vpc_secrurity_group_egress_rule_id" {
+output "vpc_security_group_egress_rule_id" {
   value = aws_vpc_security_group_egress_rule.main.id
 }

@@ -9,7 +9,6 @@ variable "project" {
 
 variable "environment" {
   type    = string
-  default = "Dev"
 }
 
 variable "region" {
@@ -24,12 +23,6 @@ variable "region" {
 
 variable "demo_bucket_name" {
   type    = string
-  default = "terraform-oidc-demo-aidan"
-}
-
-variable "demo_name" {
-  type    = string
-  default = "Terraform OIDC Demo"
 }
 
 
@@ -38,21 +31,5 @@ variable "demo_purpose" {
   default = "Terraform Demo"
 }
 
-# -----------------------------------------------------------------------------
-# State Variables
-# -----------------------------------------------------------------------------
 
-variable "state_bucket_name" {
-  type    = string
-  default = "terraform-oidc-state-aidan"
-}
 
-variable "state_name" {
-  type    = string
-  default = "Terraform OIDC State"
-}
-
-variable "state_purpose" {
-  type    = string
-  default = "Terraform State"
-}

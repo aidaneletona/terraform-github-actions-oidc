@@ -7,11 +7,4 @@ terraform {
       version = "~> 6.0"
     }
   }
-
-  backend "s3" {
-    bucket  = "terraform-oidc-state-aidan"
-    key     = "terraform.tfstate"
-    region  = "us-east-2"
-    encrypt = true
-  }
 }

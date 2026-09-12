@@ -476,28 +476,36 @@ Do not only test the successful path.
 - [x] Restore the required permission
 - [x] Introduce invalid Terraform syntax and confirm validation fails
 - [x] Introduce bad formatting and confirm the formatting check fails
-- [ ] Attempt deployment from an unauthorized branch if practical
-- [ ] Confirm deployment restrictions work
-- [ ] Document these failure tests
+- [x] Attempt deployment from an unauthorized branch if practical
+- [x] Confirm deployment restrictions work
 
 These tests demonstrate that the security controls actually enforce something.
 
 ---
 
-# Phase 19 — Logging and Audit Evidence
+# Phase 19 — Add Additional features
 
-- [ ] Use CloudTrail to verify `AssumeRoleWithWebIdentity` activity
-- [ ] Identify the GitHub Actions role in AWS activity
-- [ ] Capture evidence of successful role assumption
-- [ ] Capture GitHub Actions workflow logs
-- [ ] Capture a successful Terraform plan
-- [ ] Capture a successful deployment
-- [ ] Capture at least one intentionally failed security test
-- [ ] Do not expose credentials or sensitive values in screenshots
+- [ ] Add separate development and production environments
+- [ ] Use separate IAM roles for plan and apply
+- [ ] Add GitHub Environment approvals
+- [ ] Add Terraform state locking using the current supported AWS backend approach
+- [ ] Add Checkov
+- [ ] Drift Detection + scheduled `terraform plan`
+
+# Phase 20 — Logging and Audit Evidence
+
+- [x] Use CloudTrail to verify `AssumeRoleWithWebIdentity` activity
+- [x] Identify the GitHub Actions role in AWS activity
+- [x] Capture evidence of successful role assumption
+- [x] Capture GitHub Actions workflow logs
+- [x] Capture a successful Terraform plan
+- [x] Capture a successful deployment
+- [x] Capture at least one intentionally failed security test
+- [x] Do not expose credentials or sensitive values in screenshots
 
 ---
 
-# Phase 20 — Architecture Diagram
+# Phase 21 — Architecture Diagram
 
 Create an architecture diagram showing:
 
@@ -530,42 +538,43 @@ Terraform
 AWS Infrastructure
 ```
 
-- [ ] Add the diagram to the README
-- [ ] Explain each step in plain language
-- [ ] Clearly show that no permanent AWS access key is used
+- [x] Add the diagram to the README
+- [x] Explain each step in plain language
+- [x] Clearly show that no permanent AWS access key is used
 
 ---
 
-# Phase 21 — README Documentation
+# Phase 22 — README Documentation
 
 Your final README should include:
 
-- [ ] Project title
-- [ ] Project overview
-- [ ] Security problem being solved
-- [ ] Architecture diagram
-- [ ] Technologies used
-- [ ] Terraform explanation
-- [ ] GitHub Actions explanation
-- [ ] OIDC explanation
-- [ ] AWS STS explanation
-- [ ] IAM trust policy explanation
-- [ ] IAM permissions policy explanation
-- [ ] Document why each major permission is required
-- [ ] Remote state design
-- [ ] Pipeline workflow
-- [ ] Security controls
-- [ ] How to run the project
+- [x] Project title
+- [x] Project overview
+- [x] Security problem being solved
+- [x] Architecture diagram
+- [x] Technologies used
+- [x] Terraform explanation
+- [x] GitHub Actions explanation
+- [x] OIDC explanation
+- [x] AWS STS explanation
+- [x] IAM trust policy explanation
+- [x] IAM permissions policy explanation
+- [x] Document why each major permission is required
+- [x] Remote state design
+- [x] Pipeline workflow
+- [x] Security controls
+- [x] How to run the project
 - [ ] Example Terraform plan
 - [ ] Example successful deployment
+- [ ] Document test deployment failures (From phase 18)
 - [ ] Example failed security test
 - [ ] Screenshots
-- [ ] Limitations
-- [ ] Future improvements
+- [x] Limitations
+- [x] Future improvements
 
 ---
 
-# Phase 22 — Portfolio Evidence
+# Phase 23 — Portfolio Evidence
 
 Collect screenshots or sanitized output showing:
 
@@ -580,7 +589,7 @@ Collect screenshots or sanitized output showing:
 - [ ] Remote Terraform state bucket
 - [ ] Deployed AWS infrastructure
 - [ ] Failed authentication or permission test
-- [ ] Architecture diagram
+- [x] Architecture diagram
 
 Never publish:
 
@@ -592,7 +601,7 @@ Never publish:
 
 ---
 
-# Phase 23 — Repository Cleanup
+# Phase 24 — Repository Cleanup
 
 - [ ] Remove unused files
 - [ ] Remove temporary test configurations
@@ -610,7 +619,7 @@ Never publish:
 
 ---
 
-# Phase 24 — Resume / Portfolio Description
+# Phase 25 — Resume / Portfolio Description
 
 Possible resume bullet:
 
@@ -629,15 +638,11 @@ Be prepared to explain:
 
 ---
 
-# Optional Advanced Features
+# Optional Advanced Features (largely redundant)
 
 These are not required for the core project.
 
-- [ ] Add separate development and production environments
-- [ ] Use separate IAM roles for plan and apply
-- [ ] Add GitHub Environment approvals
-- [ ] Add Terraform state locking using the current supported AWS backend approach
-- [ ] Add Checkov
+
 - [ ] Add Trivy configuration scanning
 - [ ] Add TruffleHog or another secret scanner
 - [ ] Add cost estimation
@@ -645,8 +650,6 @@ These are not required for the core project.
 - [ ] Add automated policy checks
 - [ ] Add AWS Config
 - [ ] Add deployment notifications
-- [ ] Add drift detection
-- [ ] Add scheduled `terraform plan`
 - [ ] Add rollback/recovery documentation
 
 Note: **Checkov-heavy IaC security scanning belongs primarily in your separate IaC Security Scanning project.** You can add it here later, but it is not necessary for this project's core goal.
@@ -682,18 +685,18 @@ Use this order:
 
 The core project is complete when you can demonstrate:
 
-- [ ] AWS infrastructure is defined with Terraform
-- [ ] Terraform state is stored securely and is not committed to Git
-- [ ] GitHub Actions automatically validates Terraform
-- [ ] Pull requests produce a Terraform plan
-- [ ] Deployment occurs only through the intended branch/environment
-- [ ] GitHub Actions authenticates to AWS using OIDC
-- [ ] AWS STS provides temporary credentials
-- [ ] No permanent AWS access keys are required in GitHub
-- [ ] The OIDC trust policy is restricted to your repository
-- [ ] The deployment role follows least privilege
-- [ ] Terraform can successfully deploy the infrastructure
-- [ ] Failed authentication/permission tests prove the controls work
-- [ ] CloudTrail provides evidence of role assumption
+- [x] AWS infrastructure is defined with Terraform
+- [x] Terraform state is stored securely and is not committed to Git
+- [x] GitHub Actions automatically validates Terraform
+- [x] Pull requests produce a Terraform plan
+- [x] Deployment occurs only through the intended branch/environment
+- [x] GitHub Actions authenticates to AWS using OIDC
+- [x] AWS STS provides temporary credentials
+- [x] No permanent AWS access keys are required in GitHub
+- [x] The OIDC trust policy is restricted to your repository
+- [x] The deployment role follows least privilege
+- [x] Terraform can successfully deploy the infrastructure
+- [x] Failed authentication/permission tests prove the controls work
+- [x] CloudTrail provides evidence of role assumption
 - [ ] The architecture and security decisions are documented
 - [ ] The repository is polished enough to show an employer
