@@ -3,11 +3,11 @@
 # ----------------------------------------------------------------------------- 
 
 module "s3" {
-source = "./modules/s3"
+  source = "../../modules/s3"
 
-project = var.project
+  demo_bucket = "terraform-oidc-demo-aidan-dev"
 
-environment = var.environment
+  environment = "dev"
 
 }
 
@@ -17,8 +17,7 @@ environment = var.environment
 # ----------------------------------------------------------------------------- 
 
 module "network" {
-  source = "./modules/network"
+  source = "../../modules/network"
 
-  project     = var.project
-  environment = var.environment
+  environment = "dev"
 }

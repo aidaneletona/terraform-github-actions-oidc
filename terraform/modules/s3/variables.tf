@@ -8,7 +8,7 @@ variable "project" {
 }
 
 variable "environment" {
-  type    = string
+  type = string
 }
 
 variable "region" {
@@ -21,8 +21,8 @@ variable "region" {
 # S3 Demo Variables
 # -----------------------------------------------------------------------------
 
-variable "demo_bucket_name" {
-  type    = string
+variable "demo_bucket" {
+  type = string
 }
 
 
