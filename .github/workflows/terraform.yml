@@ -81,6 +81,27 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Test AWS STS Regional Endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RESPONSE=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          TOKEN=$(echo "$RESPONSE" | jq -r '.value')
+
+          aws sts assume-role-with-web-identity \
+            --endpoint-url https://sts.us-east-2.amazonaws.com \
+            --role-arn "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/GitHubActionsTerraformPlanRole" \
+            --role-session-name "oidc-debug" \
+            --web-identity-token "$TOKEN" \
+            --duration-seconds 900 \
+            --region us-east-2 \
+            --query 'AssumedRoleUser.Arn' \
+            --output text
+
       - name: Debug GitHub OIDC
         shell: bash
         run: |
