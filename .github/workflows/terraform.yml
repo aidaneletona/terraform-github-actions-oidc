@@ -94,7 +94,7 @@ jobs:
 
           aws sts assume-role-with-web-identity \
             --endpoint-url https://sts.us-east-2.amazonaws.com \
-            --role-arn "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/GitHubActionsTerraformPlanRole" \
+            --role-arn "arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole" \
             --role-session-name "oidc-debug" \
             --web-identity-token "$TOKEN" \
             --duration-seconds 900 \
