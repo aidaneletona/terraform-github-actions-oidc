@@ -18,6 +18,13 @@ on:
         options:
           - dev
           - prod
+      action:
+        description: "Action"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
 
 permissions:
   id-token: write
@@ -45,10 +52,10 @@ jobs:
           filters: |
             dev:
               - 'terraform/environments/dev/**'
+              - 'terraform/modules/**'
             prod:
               - 'terraform/environments/prod/**'
-
-
+              - 'terraform/modules/**'
   # DEV
   dev:
     needs: changes
@@ -60,8 +67,9 @@ jobs:
         (github.event_name == 'push' && needs.changes.outputs.dev_changed == 'true')
       )
 
+        
+    environment: dev
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: terraform/environments/dev
@@ -92,14 +100,18 @@ jobs:
         run: terraform plan -out=tfplan
 
       - name: Configure Apply Role
-        if: github.event_name == 'push'
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::ACCOUNT_ID:role/GitHubActionsTerraformApplyRole
           aws-region: us-east-2
 
       - name: Terraform Apply
-        if: github.event_name == 'push'
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         run: terraform apply -auto-approve tfplan
 
 
@@ -112,7 +124,8 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') ||
         (github.event_name == 'push' && needs.changes.outputs.prod_changed == 'true')
       )
-
+    
+    environment: prod
     runs-on: ubuntu-latest
 
     defaults:
@@ -145,12 +158,17 @@ jobs:
         run: terraform plan -out=tfplan
 
       - name: Configure Apply Role
-        if: github.event_name == 'push'
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::ACCOUNT_ID:role/GitHubActionsTerraformApplyRole
           aws-region: us-east-2
 
       - name: Terraform Apply
-        if: github.event_name == 'push'
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         run: terraform apply -auto-approve tfplan
+
