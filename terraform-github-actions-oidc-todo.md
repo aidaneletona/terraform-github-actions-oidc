@@ -490,7 +490,7 @@ These tests demonstrate that the security controls actually enforce something.
 - [x] Add GitHub Environment approvals
 - [ ] Add Terraform state locking using the current supported AWS backend approach
 - [ ] Add Checkov
-- [ ] Drift Detection + scheduled `terraform plan`
+- [x]  Drift Detection + scheduled `terraform plan`
 
 # Phase 20 — Logging and Audit Evidence
 
