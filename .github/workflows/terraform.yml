@@ -82,7 +82,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Configure Plan Role
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: arn:aws:iam::5231-0931-2572:role/GitHubActionsTerraformPlanRole
           aws-region: us-east-2
