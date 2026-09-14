@@ -82,9 +82,24 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Debug OIDC Claims
-        uses: github/actions-oidc-debugger@main
-        with:
-          audience: sts.amazonaws.com
+        shell: bash
+        run: |
+          RESPONSE=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          TOKEN=$(echo "$RESPONSE" | jq -r '.value')
+
+          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f2)
+          PAYLOAD="${PAYLOAD//-/+}"
+          PAYLOAD="${PAYLOAD//_//}"
+
+          case $((${#PAYLOAD} % 4)) in
+          2) PAYLOAD="${PAYLOAD}==" ;;
+          3) PAYLOAD="${PAYLOAD}=" ;;
+          esac
+
+          echo "$PAYLOAD" | base64 -d | jq '{iss, aud, sub}'
 
 
       - name: Configure Plan Role
