@@ -9,6 +9,9 @@ on:
     branches:
       - main
 
+  schedule:
+    - cron: "0 15 * * *"
+
   workflow_dispatch:
     inputs:
       environment:
@@ -64,7 +67,8 @@ jobs:
       (
         github.event_name == 'pull_request' ||
         (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev') ||
-        (github.event_name == 'push' && needs.changes.outputs.dev_changed == 'true')
+        (github.event_name == 'push' && needs.changes.outputs.dev_changed == 'true') ||
+        (github.event_name == 'schedule')
       )
 
         
@@ -81,246 +85,8 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Test AWS STS Regional Endpoint
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          RESPONSE=$(curl -sS \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
-
-          TOKEN=$(echo "$RESPONSE" | jq -r '.value')
-
-          aws sts assume-role-with-web-identity \
-            --endpoint-url https://sts.us-east-2.amazonaws.com \
-            --role-arn "arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole" \
-            --role-session-name "oidc-debug" \
-            --web-identity-token "$TOKEN" \
-            --duration-seconds 900 \
-            --region us-east-2 \
-            --query 'AssumedRoleUser.Arn' \
-            --output text
-
-      - name: Debug GitHub OIDC
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "=========================================="
-          echo "1. GITHUB JOB CONTEXT"
-          echo "=========================================="
-          echo "Repository:     $GITHUB_REPOSITORY"
-          echo "Repository ID:  $GITHUB_REPOSITORY_ID"
-          echo "Owner:          $GITHUB_REPOSITORY_OWNER"
-          echo "Owner ID:       $GITHUB_REPOSITORY_OWNER_ID"
-          echo "Event:          $GITHUB_EVENT_NAME"
-          echo "Ref:            $GITHUB_REF"
-          echo "Ref name:       $GITHUB_REF_NAME"
-          echo "SHA:            $GITHUB_SHA"
-          echo "Workflow:       $GITHUB_WORKFLOW"
-          echo "Job:            $GITHUB_JOB"
-          echo "Actor:          $GITHUB_ACTOR"
-
-          echo
-          echo "=========================================="
-          echo "2. OIDC ENVIRONMENT VARIABLES"
-          echo "=========================================="
-
-          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
-            echo "ACTIONS_ID_TOKEN_REQUEST_URL is present"
-          else
-            echo "ERROR: ACTIONS_ID_TOKEN_REQUEST_URL is missing"
-          fi
-
-          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
-            echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN is present"
-          else
-            echo "ERROR: ACTIONS_ID_TOKEN_REQUEST_TOKEN is missing"
-          fi
-
-          echo
-          echo "=========================================="
-          echo "3. REQUEST OIDC TOKEN"
-          echo "=========================================="
-
-          RESPONSE=$(curl -sS \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
-
-          TOKEN=$(echo "$RESPONSE" | jq -r '.value')
-
-          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "ERROR: GitHub did not return an OIDC token"
-            echo "$RESPONSE" | jq
-            exit 1
-          fi
-
-          echo "OIDC token successfully received"
-          echo "Token length: ${#TOKEN} characters"
-          echo "JWT segments: $(echo "$TOKEN" | awk -F'.' '{print NF}')"
-
-          echo
-          echo "=========================================="
-          echo "4. JWT HEADER"
-          echo "=========================================="
-
-          HEADER=$(echo "$TOKEN" | cut -d '.' -f1)
-          HEADER="${HEADER//-/+}"
-          HEADER="${HEADER//_//}"
-
-          case $((${#HEADER} % 4)) in
-            2) HEADER="${HEADER}==" ;;
-            3) HEADER="${HEADER}=" ;;
-          esac
-
-          echo "$HEADER" | base64 -d | jq '{
-            alg,
-            typ,
-            kid
-          }'
-
-          KID=$(echo "$HEADER" | base64 -d | jq -r '.kid')
-
-          echo
-          echo "=========================================="
-          echo "5. JWT CLAIMS"
-          echo "=========================================="
-
-          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f2)
-          PAYLOAD="${PAYLOAD//-/+}"
-          PAYLOAD="${PAYLOAD//_//}"
-
-          case $((${#PAYLOAD} % 4)) in
-            2) PAYLOAD="${PAYLOAD}==" ;;
-            3) PAYLOAD="${PAYLOAD}=" ;;
-          esac
-
-          echo "$PAYLOAD" | base64 -d | jq '{
-            iss,
-            aud,
-            sub,
-            repository,
-            repository_id,
-            repository_owner,
-            repository_owner_id,
-            ref,
-            ref_type,
-            environment,
-            event_name,
-            workflow,
-            workflow_ref,
-            job_workflow_ref,
-            actor,
-            actor_id,
-            sha,
-            iat,
-            nbf,
-            exp
-          }'
-
-          echo
-          echo "=========================================="
-          echo "6. GITHUB OIDC DISCOVERY DOCUMENT"
-          echo "=========================================="
-
-          DISCOVERY=$(curl -sS \
-            https://token.actions.githubusercontent.com/.well-known/openid-configuration)
-
-          echo "$DISCOVERY" | jq '{
-            issuer,
-            jwks_uri,
-            id_token_signing_alg_values_supported,
-            subject_types_supported
-          }'
-
-          JWKS_URI=$(echo "$DISCOVERY" | jq -r '.jwks_uri')
-
-          echo
-          echo "=========================================="
-          echo "7. GITHUB JWKS SIGNING KEYS"
-          echo "=========================================="
-
-          JWKS=$(curl -sS "$JWKS_URI")
-
-          echo "Token KID:"
-          echo "$KID"
-
-          echo
-          echo "Available GitHub signing KIDs:"
-          echo "$JWKS" | jq -r '.keys[].kid'
-
-          echo
-          echo "Matching signing key:"
-          echo "$JWKS" | jq --arg kid "$KID" \
-            '.keys[] | select(.kid == $kid) | {
-              kid,
-              kty,
-              alg,
-              use
-            }'
-
-          MATCH=$(echo "$JWKS" | jq --arg kid "$KID" \
-            '[.keys[] | select(.kid == $kid)] | length')
-
-          if [ "$MATCH" -gt 0 ]; then
-            echo "SUCCESS: Token KID exists in GitHub JWKS"
-          else
-            echo "ERROR: Token KID was NOT found in GitHub JWKS"
-          fi
-
-          echo
-          echo "=========================================="
-          echo "8. TOKEN TIMING"
-          echo "=========================================="
-
-          NOW=$(date +%s)
-          IAT=$(echo "$PAYLOAD" | base64 -d | jq -r '.iat')
-          NBF=$(echo "$PAYLOAD" | base64 -d | jq -r '.nbf')
-          EXP=$(echo "$PAYLOAD" | base64 -d | jq -r '.exp')
-
-          echo "Runner time: $NOW"
-          echo "Issued at:   $IAT"
-          echo "Not before:  $NBF"
-          echo "Expires at:  $EXP"
-          echo "Age:         $((NOW - IAT)) seconds"
-          echo "Expires in:  $((EXP - NOW)) seconds"
-
-          if [ "$NOW" -lt "$NBF" ]; then
-            echo "ERROR: Token is not valid yet"
-          fi
-
-          if [ "$NOW" -ge "$EXP" ]; then
-            echo "ERROR: Token is expired"
-          fi
-
-          echo
-          echo "=========================================="
-          echo "OIDC DEBUG COMPLETE"
-          echo "=========================================="
-
-      - name: Test AWS STS Directly
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          RESPONSE=$(curl -sS \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
-
-          TOKEN=$(echo "$RESPONSE" | jq -r '.value')
-
-          aws sts assume-role-with-web-identity \
-            --role-arn "arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole" \
-            --role-session-name "oidc-debug" \
-            --web-identity-token "$TOKEN" \
-            --duration-seconds 900 \
-            --region us-east-2 \
-            --query 'AssumedRoleUser.Arn' \
-            --output text
-
       - name: Configure Plan Role
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
           aws-region: us-east-2
@@ -335,7 +101,46 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        id: plan
+        shell: bash
+        run: |
+          set +e
+
+          terraform plan -detailed-exitcode -out=tfplan
+          EXIT_CODE=$?
+
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No changes detected."
+            exit 0
+          elif [ "$EXIT_CODE" -eq 2 ]; then
+            echo "Changes detected."
+            exit 0
+          else
+            echo "Terraform plan failed."
+            exit 1
+          fi
+
+      - name: Report Drift
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
+            echo "Drift detected."
+          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
+            echo "No drift detected."
+          fi
+
+      - name: Drift Summary
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
+            echo "## DEV Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+            echo "Drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
+            echo "## DEV Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+            echo "No drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Configure Apply Role
         if: |
@@ -344,7 +149,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
-          aws-region: us-east-2
+          aws-region: us-east-2     
 
       - name: Terraform Apply
         if: |
@@ -360,7 +165,8 @@ jobs:
       always() &&
       (
         (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') ||
-        (github.event_name == 'push' && needs.changes.outputs.prod_changed == 'true')
+        (github.event_name == 'push' && needs.changes.outputs.prod_changed == 'true') ||
+        (github.event_name == 'schedule') 
       )
     
     environment: prod
@@ -393,7 +199,46 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        id: plan
+        shell: bash
+        run: |
+          set +e
+
+          terraform plan -detailed-exitcode -out=tfplan
+          EXIT_CODE=$?
+
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No changes detected."
+            exit 0
+          elif [ "$EXIT_CODE" -eq 2 ]; then
+            echo "Changes detected."
+            exit 0
+          else
+            echo "Terraform plan failed."
+            exit 1
+          fi
+
+      - name: Report Drift
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
+            echo "Drift detected."
+          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
+            echo "No drift detected."
+          fi
+
+      - name: Drift Summary
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
+            echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+            echo "Drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
+            echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+            echo "No drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Configure Apply Role
         if: |
