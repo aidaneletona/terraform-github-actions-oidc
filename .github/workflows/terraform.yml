@@ -122,13 +122,12 @@ jobs:
             exit 1
           fi
 
-      - name: Report Drift
-        if: github.event_name == 'schedule'
+      - name: Report Plan Changes
         run: |
           if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-            echo "Drift detected."
+            echo "Changes detected."
           elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-            echo "No drift detected."
+            echo "No changes detected."
           fi
 
       - name: Drift Summary
@@ -220,13 +219,12 @@ jobs:
             exit 1
           fi
 
-      - name: Report Drift
-        if: github.event_name == 'schedule'
+      - name: Report Plan Changes
         run: |
           if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-            echo "Drift detected."
+            echo "Changes detected."
           elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-            echo "No drift detected."
+            echo "No changes detected."
           fi
 
       - name: Drift Summary
