@@ -278,6 +278,25 @@ jobs:
           echo "OIDC DEBUG COMPLETE"
           echo "=========================================="
 
+      - name: Test AWS STS Directly
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RESPONSE=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          TOKEN=$(echo "$RESPONSE" | jq -r '.value')
+
+          aws sts assume-role-with-web-identity \
+            --role-arn "arn:aws:iam::5231-0931-2572:role/GitHubActionsTerraformPlanRole" \
+            --role-session-name "oidc-debug" \
+            --web-identity-token "$TOKEN" \
+            --duration-seconds 900 \
+            --region us-east-2 \
+            --query 'AssumedRoleUser.Arn' \
+            --output text
 
       - name: Configure Plan Role
         uses: aws-actions/configure-aws-credentials@v5
