@@ -1,46 +1,156 @@
+name: Terraform CI/CD
+
 on:
   pull_request:
     branches:
       - main
+
   push:
     branches:
       - main
+
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
 
 permissions:
   id-token: write
-  contents: read 
+  contents: read
 
 jobs:
-  terraform:
+
+  # Find out whether dev or prod files changed
+  changes:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
+    outputs:
+      dev_changed: ${{ steps.filter.outputs.dev }}
+      prod_changed: ${{ steps.filter.outputs.prod }}
+
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: filter
         with:
-          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformRole
-          aws-region: us-east-2
+          filters: |
+            dev:
+              - 'terraform/environments/dev/**'
+            prod:
+              - 'terraform/environments/prod/**'
 
+
+  # DEV
+  dev:
+    needs: changes
+    if: | 
+      always() &&
+      (
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev') ||
+        (github.event_name == 'push' && needs.changes.outputs.dev_changed == 'true')
+      )
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
+
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Configure Plan Role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/GitHubActionsTerraformPlanRole
+          aws-region: us-east-2
+
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        run: terraform -chdir=terraform init 
-      
+        run: terraform init
+
       - name: Terraform Validate
-        run: terraform -chdir=terraform validate
+        run: terraform validate
 
       - name: Terraform Plan
-        run: terraform -chdir=terraform plan -out=tfplan
+        run: terraform plan -out=tfplan
+
+      - name: Configure Apply Role
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/GitHubActionsTerraformApplyRole
+          aws-region: us-east-2
 
       - name: Terraform Apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: terraform -chdir=terraform apply -auto-approve tfplan
+        if: github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
+
+
+  # PROD
+  prod:
+    needs: changes
+    if: |
+      always() &&
+      (
+        (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') ||
+        (github.event_name == 'push' && needs.changes.outputs.prod_changed == 'true')
+      )
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform/environments/prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure Plan Role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/GitHubActionsTerraformPlanRole
+          aws-region: us-east-2
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Configure Apply Role
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/GitHubActionsTerraformApplyRole
+          aws-region: us-east-2
+
+      - name: Terraform Apply
+        if: github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
