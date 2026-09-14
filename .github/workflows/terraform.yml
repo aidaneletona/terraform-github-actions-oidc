@@ -311,7 +311,7 @@ jobs:
           TOKEN=$(echo "$RESPONSE" | jq -r '.value')
 
           aws sts assume-role-with-web-identity \
-            --role-arn "arn:aws:iam::5231-0931-2572:role/GitHubActionsTerraformPlanRole" \
+            --role-arn "arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole" \
             --role-session-name "oidc-debug" \
             --web-identity-token "$TOKEN" \
             --duration-seconds 900 \
@@ -322,7 +322,7 @@ jobs:
       - name: Configure Plan Role
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: arn:aws:iam::5231-0931-2572:role/GitHubActionsTerraformPlanRole
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
           aws-region: us-east-2
 
       - name: Terraform Format Check
@@ -343,7 +343,7 @@ jobs:
           (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::5231-0931-2572:role/GitHubActionsTerraformApplyRole
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
           aws-region: us-east-2
 
       - name: Terraform Apply
@@ -380,7 +380,7 @@ jobs:
       - name: Configure Plan Role
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::5231-0931-2572:role/GitHubActionsTerraformPlanRole
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
           aws-region: us-east-2
 
       - name: Terraform Format Check
@@ -401,7 +401,7 @@ jobs:
           (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::5231-0931-2572:role/GitHubActionsTerraformApplyRole
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
           aws-region: us-east-2
 
       - name: Terraform Apply
