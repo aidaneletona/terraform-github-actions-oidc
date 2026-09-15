@@ -100,6 +100,12 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Checkov Security Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/environments/dev
+          framework: terraform
+
       - name: Terraform Plan
         id: plan
         shell: bash
@@ -196,6 +202,12 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
+
+      - name: Checkov Security Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/environments/dev
+          framework: terraform
 
       - name: Terraform Plan
         id: plan

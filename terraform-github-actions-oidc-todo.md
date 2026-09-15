@@ -488,7 +488,7 @@ These tests demonstrate that the security controls actually enforce something.
 - [x] Add separate development and production environments
 - [x] Use separate IAM roles for plan and apply
 - [x] Add GitHub Environment approvals
-- [ ] Add Terraform state locking using the current supported AWS backend approach
+- [x] Add Terraform state locking using the current supported AWS backend approach
 - [ ] Add Checkov
 - [x]  Drift Detection + scheduled `terraform plan`
 
