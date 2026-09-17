@@ -14,20 +14,14 @@ on:
 
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Environment"
-        required: true
-        type: choice
-        options:
-          - dev
-          - prod
       action:
         description: "Action"
         required: true
         type: choice
         options:
-          - plan
-          - apply
+          - plan-dev
+          - apply-dev
+          - promote-prod
 
 permissions:
   id-token: write
@@ -35,15 +29,15 @@ permissions:
 
 jobs:
 
-  # Find out whether dev or prod files changed
   changes:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     outputs:
-      dev_changed: ${{ steps.filter.outputs.dev }}
-      prod_changed: ${{ steps.filter.outputs.prod }}
-
+      dev: ${{ steps.filter.outputs.dev }}
+      prod: ${{ steps.filter.outputs.prod }}
+      modules: ${{ steps.filter.outputs.modules }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,25 +49,70 @@ jobs:
           filters: |
             dev:
               - 'terraform/environments/dev/**'
-              - 'terraform/modules/**'
             prod:
               - 'terraform/environments/prod/**'
+            modules:
               - 'terraform/modules/**'
-  # DEV
+
+  pr-check:
+      if: github.event_name == 'pull_request'
+      runs-on: ubuntu-latest
+
+      defaults:
+        run:
+          working-directory: terraform/environments/dev
+
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Setup Terraform
+          uses: hashicorp/setup-terraform@v3
+
+        - name: Configure Plan Role
+          uses: aws-actions/configure-aws-credentials@v6
+          with:
+            role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
+            aws-region: us-east-2
+
+        - name: Terraform Format Check
+          run: terraform fmt -check -recursive
+
+        - name: Terraform Init
+          run: terraform init
+
+        - name: Terraform Validate
+          run: terraform validate
+
+        - name: Checkov Security Scan
+          uses: bridgecrewio/checkov-action@v12
+          with:
+            directory: terraform/environments/dev
+            framework: terraform
+
+        - name: Terraform Plan
+          run: terraform plan
+
+
+    # DEV
   dev:
     needs: changes
-    if: | 
+
+    if: |
       always() &&
       (
-        github.event_name == 'pull_request' ||
-        (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev') ||
-        (github.event_name == 'push' && needs.changes.outputs.dev_changed == 'true') ||
-        (github.event_name == 'schedule')
+        (github.event_name == 'push' &&
+          (needs.changes.outputs.dev == 'true' ||
+          needs.changes.outputs.modules == 'true')) ||
+        (github.event_name == 'workflow_dispatch' &&
+          (inputs.action == 'plan-dev' ||
+          inputs.action == 'apply-dev')) ||
+        github.event_name == 'schedule'
       )
 
-        
     environment: dev
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: terraform/environments/dev
@@ -113,8 +152,8 @@ jobs:
           set +e
 
           terraform plan -detailed-exitcode -out=tfplan
-          EXIT_CODE=$?
 
+          EXIT_CODE=$?
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
           if [ "$EXIT_CODE" -eq 0 ]; then
@@ -150,30 +189,28 @@ jobs:
       - name: Configure Apply Role
         if: |
           github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.action == 'apply-dev')
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
-          aws-region: us-east-2     
+          aws-region: us-east-2
 
       - name: Terraform Apply
         if: |
           github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.action == 'apply-dev')
         run: terraform apply -auto-approve tfplan
 
 
-  # PROD
+    # PROD
   prod:
-    needs: changes
     if: |
-      always() &&
-      (
-        (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') ||
-        (github.event_name == 'push' && needs.changes.outputs.prod_changed == 'true') ||
-        (github.event_name == 'schedule') 
-      )
-    
+      (github.event_name == 'workflow_dispatch' &&
+      inputs.action == 'promote-prod') ||
+      github.event_name == 'schedule'
+
     environment: prod
     runs-on: ubuntu-latest
 
@@ -206,7 +243,7 @@ jobs:
       - name: Checkov Security Scan
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: terraform/environments/dev
+          directory: terraform/environments/prod
           framework: terraform
 
       - name: Terraform Plan
@@ -216,8 +253,8 @@ jobs:
           set +e
 
           terraform plan -detailed-exitcode -out=tfplan
-          EXIT_CODE=$?
 
+          EXIT_CODE=$?
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
           if [ "$EXIT_CODE" -eq 0 ]; then
@@ -252,8 +289,8 @@ jobs:
 
       - name: Configure Apply Role
         if: |
-          github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          github.event_name == 'workflow_dispatch' &&
+          inputs.action == 'promote-prod'
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
@@ -261,7 +298,7 @@ jobs:
 
       - name: Terraform Apply
         if: |
-          github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          github.event_name == 'workflow_dispatch' &&
+          inputs.action == 'promote-prod'
         run: terraform apply -auto-approve tfplan
 

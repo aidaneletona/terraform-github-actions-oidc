@@ -489,7 +489,7 @@ These tests demonstrate that the security controls actually enforce something.
 - [x] Use separate IAM roles for plan and apply
 - [x] Add GitHub Environment approvals
 - [x] Add Terraform state locking using the current supported AWS backend approach
-- [ ] Add Checkov
+- [x] Add Checkov
 - [x]  Drift Detection + scheduled `terraform plan`
 
 # Phase 20 — Logging and Audit Evidence
@@ -539,7 +539,6 @@ AWS Infrastructure
 ```
 
 - [x] Add the diagram to the README
-- [x] Explain each step in plain language
 - [x] Clearly show that no permanent AWS access key is used
 
 ---
@@ -552,6 +551,7 @@ Your final README should include:
 - [x] Project overview
 - [x] Security problem being solved
 - [x] Architecture diagram
+- [x] Pipeline workflow
 - [x] Technologies used
 - [x] Terraform explanation
 - [x] GitHub Actions explanation
@@ -561,7 +561,6 @@ Your final README should include:
 - [x] IAM permissions policy explanation
 - [x] Document why each major permission is required
 - [x] Remote state design
-- [x] Pipeline workflow
 - [x] Security controls
 - [x] How to run the project
 - [ ] Example Terraform plan
