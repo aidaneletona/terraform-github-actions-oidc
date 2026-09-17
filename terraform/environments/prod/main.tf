@@ -17,9 +17,5 @@ module "s3" {
 # Network Module
 # ----------------------------------------------------------------------------- 
 
-module "network" {
-  source = "../../modules/network"
 
-  environment = "prod"
-}
 
