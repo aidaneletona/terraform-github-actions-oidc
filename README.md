@@ -5,15 +5,95 @@ Give the remote Github Actions AWS credentials while reducing the risk of it bei
 
 ```mermaid
 flowchart TD
-    A[Developer] --> B[GitHub Repository]
-    B --> C[GitHub Actions]
-    C -->|OIDC Token| D[AWS STS]
-    D -->|Temporary Credentials| E[IAM Role]
-    E --> F[Terraform]
-    F --> G[AWS Infrastructure]
+    A[Developer / GitHub Repository]
+
+    A -->|Pull Request to main| PR[Pull Request Trigger]
+    A -->|Push to main| PUSH[Push Trigger]
+    A -->|Manual Dispatch| MANUAL[Select DEV or PROD and Plan or Apply]
+    A -->|Daily Schedule| SCHEDULE[Scheduled Drift Check]
+
+    PUSH --> CHANGES[Path Filter]
+    CHANGES -->|DEV files or shared modules changed| DEV
+    CHANGES -->|PROD files or shared modules changed| PROD
+
+    PR --> DEV
+    MANUAL --> DEV
+    MANUAL --> PROD
+    SCHEDULE --> DEV
+    SCHEDULE --> PROD
+
+    subgraph DEV[DEV Environment]
+        D1[Checkout Repository]
+        D2[Setup Terraform]
+        D3[Request GitHub OIDC Token]
+        D4[AWS STS]
+        D5[Assume Plan Role]
+        D6[Terraform Format Check]
+        D7[Terraform Init]
+        D8[Terraform Validate]
+        D9[Checkov Security Scan]
+        D10[Terraform Plan]
+
+        D1 --> D2 --> D3 --> D4 --> D5
+        D5 --> D6 --> D7 --> D8 --> D9 --> D10
+    end
+
+    subgraph PROD[PROD Environment]
+        P1[Checkout Repository]
+        P2[Setup Terraform]
+        P3[Request GitHub OIDC Token]
+        P4[AWS STS]
+        P5[Assume Plan Role]
+        P6[Terraform Format Check]
+        P7[Terraform Init]
+        P8[Terraform Validate]
+        P9[Checkov Security Scan]
+        P10[Terraform Plan]
+
+        P1 --> P2 --> P3 --> P4 --> P5
+        P5 --> P6 --> P7 --> P8 --> P9 --> P10
+    end
+
+    D9 -->|Checkov fails| BLOCK1[Pipeline Blocked]
+    P9 -->|Checkov fails| BLOCK2[Pipeline Blocked]
+
+    D10 -->|Scheduled Run| DRIFT1[DEV Drift Summary]
+    P10 -->|Scheduled Run| DRIFT2[PROD Drift Summary]
+
+    D10 -->|Push or Manual Apply| DA[DEV GitHub Environment]
+    P10 -->|Push or Manual Apply| PA[PROD GitHub Environment]
+
+    DA --> DOIDC[OIDC / AWS STS]
+    PA --> POIDC[OIDC / AWS STS]
+
+    DOIDC --> DAR[Assume Apply Role]
+    POIDC --> PAR[Assume Apply Role]
+
+    DAR --> DAPPLY[Terraform Apply]
+    PAR --> PAPPLY[Terraform Apply]
+
+    DAPPLY --> AWS[AWS Infrastructure]
+    PAPPLY --> AWS
+
+    STATE[(S3 Backend: Remote State + State Locking)]
+
+    D7 -.-> STATE
+    D10 -.-> STATE
+    DAPPLY -.-> STATE
+
+    P7 -.-> STATE
+    P10 -.-> STATE
+    PAPPLY -.-> STATE
+```
 
 
-Developer writes the infrastructure with terraform and workflow that GitHubActions executes. GitHubActions provides OIDC token to AWS STS to verify it's identity. If the claims in the token provided by GitHubActions (such as subject and audience) matches the conditions in the IAM Role's trust policy, AWS STS accepts the Token and gives GitHubActions temporary credentials. With the credentials GitHubActions can can call APIs the in workflow, and by application of least privelege, the Role provides only the neccessary permissions to the call the APis.. GitHubActions at the end of workflow, after verifying formatting and validation of Terraform code, applies Terraform code, and creates cloud infrastrucutre in AWS.
+### Pipeline
+
+On a pull request, push request, or a manual workflow dispatch, it triggers the computer to start the workflow. First it waits for the required viewer to give permission to run the workflow. If approved, GitHubActions proceeds. GitHubActions is granted permissions to request an OIDC token from GitHub. Then it's granted permission to read the files save in Terraform-Github-Actions-OIDC repository. It starts running on latest version of Ubuntu. It requests an AssumeRoleWithIdentity to the IAM role GitHubActionsTerraformRole. It provides an ID token from Github OIDC provider in the request, to AWS STS. 
+
+If authentication is successful the computer accesses GitHub's Action's organization and 'checkout', the repository inside that contains the code for the runner. Next it installs Terraform onto itself, so it can read and write in Terraform code. It first checks if the Terraform-Github-Actions-OIDC repository is formatted correctly. Then it intializes the S3 Backend in versions.tf and downloads the AWS provider that it can communicate to the cloud, such as creating resources or API calls. 
+
+After initiliation it validates the code if it's written in correct Terraform syntax and that it's readable, then creates a plan of the new version of the cloud infrastructure. It contains what changes will be made, such as what resources will be destroyed or added, which I can view in the workflow logs. Finally it applies the changes, using that Terraform plan, updating the cloud infrastructure in AWS.
 
 ## Technologies Used
 
@@ -67,13 +147,7 @@ Permissions to retrieve existing resources of AWS infrastructure and objects ins
 
 Terraform state is stored remotely in the terraform-oidc-state-aidan S3 bucket as an object with the key terraform.tfstate using the S3 backend.
 
-###Pipeline
 
-On a pull request, push request, or a manual workflow dispatch, it triggers the computer to start the workflow. First GitHubActions is granted permissions to request an OIDC token from GitHub. Then it's granted permission to read the files save in Terraform-Github-Actions-OIDC repository. It starts running on latest version of Ubuntu. It requests an AssumeRoleWithIdentity to the IAM role GitHubActionsTerraformRole. It provides an ID token from Github OIDC provider in the request, to AWS STS. 
-
-If authentication is successful the computer accesses GitHub's Action's organization and 'checkout', the repository inside that contains the code for the runner. Next it installs Terraform onto itself, so it can read and write in Terraform code. It first checks if the Terraform-Github-Actions-OIDC repository is formatted correctly. Then it intializes the S3 Backend in versions.tf and downloads the AWS provider that it can communicate to the cloud, such as creating resources or API calls. 
-
-After initiliation it validates the code if it's written in correct Terraform syntax and that it's readable, then creates a plan of the new version of the cloud infrastructure. It contains what changes will be made, such as what resources will be destroyed or added, which I can view in the workflow logs. Finally it applies the changes, using that Terraform plan, updating the cloud infrastructure in AWS.
 
 ## Security Controls
 
