@@ -68,6 +68,21 @@ jobs:
           with:
             fetch-depth: 0
 
+        - name: Block direct PROD changes
+          working-directory: ${{ github.workspace }}
+          shell: bash
+          run: |
+            CHANGED_FILES=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")
+
+            echo "Files changed in this pull request:"
+            echo "$CHANGED_FILES"
+
+            if echo "$CHANGED_FILES" | grep -q '^terraform/environments/prod/'; then
+              echo "Direct changes to terraform/environments/prod/** are not allowed."
+              echo "Shared infrastructure changes must be made through terraform/modules/** and validated in DEV before PROD promotion."
+              exit 1
+            fi
+
         - name: Setup Terraform
           uses: hashicorp/setup-terraform@v3
 
