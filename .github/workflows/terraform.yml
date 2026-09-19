@@ -26,6 +26,8 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: read
+  pull-requests: read
 
 jobs:
 
@@ -109,6 +111,28 @@ jobs:
             framework: terraform
 
         - name: Terraform Plan
+          run: terraform plan 
+
+        - name: Terraform Init PROD
+          if: steps.prod_changes.outputs.changed == 'true'
+          working-directory: terraform/environments/prod
+          run: terraform init
+
+        - name: Terraform Validate PROD
+          if: steps.prod_changes.outputs.changed == 'true'
+          working-directory: terraform/environments/prod
+          run: terraform validate
+
+        - name: Checkov Security Scan PROD
+          if: steps.prod_changes.outputs.changed == 'true'
+          uses: bridgecrewio/checkov-action@v12
+          with:
+            directory: terraform/environments/prod
+            framework: terraform
+
+        - name: Terraform Plan PROD
+          if: steps.prod_changes.outputs.changed == 'true'
+          working-directory: terraform/environments/prod
           run: terraform plan
 
 
@@ -185,28 +209,6 @@ jobs:
             exit 1
           fi
 
-      - name: Terraform Init PROD
-        if: steps.prod_changes.outputs.changed == 'true'
-        working-directory: terraform/environments/prod
-        run: terraform init
-
-      - name: Terraform Validate PROD
-        if: steps.prod_changes.outputs.changed == 'true'
-        working-directory: terraform/environments/prod
-        run: terraform validate
-
-      - name: Checkov Security Scan PROD
-        if: steps.prod_changes.outputs.changed == 'true'
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: terraform/environments/prod
-          framework: terraform
-
-      - name: Terraform Plan PROD
-        if: steps.prod_changes.outputs.changed == 'true'
-        working-directory: terraform/environments/prod
-        run: terraform plan
-
       - name: Report Plan Changes
         run: |
           if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
@@ -266,90 +268,154 @@ jobs:
         working-directory: terraform/environments/prod
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+    - name: Verify PROD Promotion Eligibility
+      if: |
+        github.event_name == 'workflow_dispatch' &&
+        inputs.action == 'promote-prod'
+      working-directory: ${{ github.workspace }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        set -e
 
-      - name: Configure Plan Role
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
-          aws-region: us-east-2
+        SHA="${{ github.sha }}"
 
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
+        PR_NUMBER=$(gh api \
+          "repos/${{ github.repository }}/commits/$SHA/pulls" \
+          --jq '[.[] | select(.merged_at != null and .base.ref == "main")][0].number // empty')
 
-      - name: Terraform Init
-        run: terraform init
+        if [ -z "$PR_NUMBER" ]; then
+          echo "ERROR: No merged PR into main found."
+          exit 1
+        fi
 
-      - name: Terraform Validate
-        run: terraform validate
+        CHANGED_FILES=$(gh api \
+          --paginate \
+          "repos/${{ github.repository }}/pulls/$PR_NUMBER/files" \
+          --jq '.[].filename')
 
-      - name: Checkov Security Scan
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: terraform/environments/prod
-          framework: terraform
+        # Shared module change → DEV must have succeeded.
+        if echo "$CHANGED_FILES" | grep -q '^terraform/modules/'; then
 
-      - name: Terraform Plan
-        id: plan
-        shell: bash
-        run: |
-          set +e
+          RUN_ID=$(gh api \
+            "repos/${{ github.repository }}/actions/runs?head_sha=$SHA&event=push" \
+            --jq '.workflow_runs[] | select(.name == "Terraform CI/CD") | .id' \
+            | head -n 1)
 
-          terraform plan -detailed-exitcode -out=tfplan
-
-          EXIT_CODE=$?
-          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
-
-          if [ "$EXIT_CODE" -eq 0 ]; then
-            echo "No changes detected."
-            exit 0
-          elif [ "$EXIT_CODE" -eq 2 ]; then
-            echo "Changes detected."
-            exit 0
-          else
-            echo "Terraform plan failed."
+          if [ -z "$RUN_ID" ]; then
+            echo "ERROR: No DEV workflow run found."
             exit 1
           fi
 
-      - name: Report Plan Changes
-        run: |
-          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-            echo "Changes detected."
-          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-            echo "No changes detected."
+          DEV_SUCCESS=$(gh api \
+            "repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.name == "dev" and .conclusion == "success")] | length')
+
+          if [ "$DEV_SUCCESS" -eq 0 ]; then
+            echo "ERROR: Shared change did not successfully pass DEV."
+            exit 1
           fi
 
-      - name: Drift Summary
-        if: github.event_name == 'schedule'
-        run: |
-          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-            echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
-            echo "Drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
-          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-            echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
-            echo "No drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "Shared change passed DEV. PROD promotion allowed."
+          exit 0
+        fi
 
-      - name: Configure Apply Role
-        if: |
-          steps.plan.outputs.exit_code == '2' &&
-          github.event_name == 'workflow_dispatch' &&
-          inputs.action == 'promote-prod'
+        # PROD-specific change → it already passed the PROD PR checks.
+        if echo "$CHANGED_FILES" | grep -q '^terraform/environments/prod/'; then
+          echo "PROD-specific change passed the PR path. PROD promotion allowed."
+          exit 0
+        fi
+
+        echo "ERROR: No PROD-eligible change found."
+        exit 1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Configure Plan Role
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
+        aws-region: us-east-2
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: Checkov Security Scan
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: terraform/environments/prod
+        framework: terraform
+
+    - name: Terraform Plan
+      id: plan
+      shell: bash
+      run: |
+        set +e
+
+        terraform plan -detailed-exitcode -out=tfplan
+
+        EXIT_CODE=$?
+        echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+        if [ "$EXIT_CODE" -eq 0 ]; then
+          echo "No changes detected."
+          exit 0
+        elif [ "$EXIT_CODE" -eq 2 ]; then
+          echo "Changes detected."
+          exit 0
+        else
+          echo "Terraform plan failed."
+          exit 1
+        fi
+
+    - name: Report Plan Changes
+      run: |
+        if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
+          echo "Changes detected."
+        elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
+          echo "No changes detected."
+        fi
+
+    - name: Drift Summary
+      if: github.event_name == 'schedule'
+      run: |
+        if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
+          echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "Drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+        elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
+          echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "No drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Configure Apply Role
+      if: |
+        steps.plan.outputs.exit_code == '2' &&
+        github.event_name == 'workflow_dispatch' &&
+        inputs.action == 'promote-prod'
+      
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
+        aws-region: us-east-2
+
+    - name: Terraform Apply
+      if: |
+        steps.plan.outputs.exit_code == '2' &&
+        github.event_name == 'workflow_dispatch' &&
+        inputs.action == 'promote-prod'
         
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
-          aws-region: us-east-2
-
-      - name: Terraform Apply
-        if: |
-          steps.plan.outputs.exit_code == '2' &&
-          github.event_name == 'workflow_dispatch' &&
-          inputs.action == 'promote-prod'
-          
-        run: terraform apply -auto-approve tfplan
+      run: terraform apply -auto-approve tfplan
 
