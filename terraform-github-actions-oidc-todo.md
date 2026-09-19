@@ -490,7 +490,7 @@ These tests demonstrate that the security controls actually enforce something.
 - [x] Add GitHub Environment approvals
 - [x] Add Terraform state locking using the current supported AWS backend approach
 - [x] Add Checkov
-- [x]  Drift Detection + scheduled `terraform plan`
+- [x] Drift Detection + scheduled `terraform plan`
 
 # Phase 20 — Logging and Audit Evidence
 
@@ -553,21 +553,41 @@ Your final README should include:
 - [x] Architecture diagram
 - [x] Pipeline workflow
 - [x] Technologies used
+
 - [x] Terraform explanation
 - [x] GitHub Actions explanation
+
 - [x] OIDC explanation
+- [ ] Explain the AWS IAM OIDC identity provider and its role in trusting GitHub
 - [x] AWS STS explanation
 - [x] IAM trust policy explanation
 - [x] IAM permissions policy explanation
+- [ ] Explain separate Plan and Apply IAM roles
+- [ ] Document least-privilege design decisions
 - [x] Document why each major permission is required
+
 - [x] Remote state design
+- [ ] Explain why the S3 backend requires `s3:ListBucket`
+- [ ] Document Terraform state locking
+
+
 - [x] Security controls
+- [ ] Document GitHub `main` branch protection / repository rules
+- [ ] Explain separate Terraform DEV and PROD environments
+- [ ] Explain DEV and PROD GitHub Environments and deployment approvals
+- [ ] Document DEV-first → PROD promotion protection
+- [ ] Document Checkov security scanning and intentional suppressions
+- [ ] Document scheduled Terraform drift detection
+
+
 - [x] How to run the project
+
 - [ ] Example Terraform plan
 - [ ] Example successful deployment
 - [ ] Document test deployment failures (From phase 18)
 - [ ] Example failed security test
 - [ ] Screenshots
+
 - [x] Limitations
 - [x] Future improvements
 

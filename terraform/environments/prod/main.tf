@@ -6,7 +6,7 @@ module "s3" {
 
   source = "../../modules/s3"
 
-  demo_bucket = "terraform-oidc-demo-aidan-dev"
+  demo_bucket = "terraform-oidc-demo-aidan-prod"
 
   environment = "prod"
 
@@ -17,5 +17,10 @@ module "s3" {
 # Network Module
 # ----------------------------------------------------------------------------- 
 
+module "network" {
+  source = "../../modules/network"
+
+  environment = "prod"
+}
 
 
