@@ -205,9 +205,13 @@ jobs:
 
       - name: Configure Apply Role
         if: |
-          github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' &&
-          inputs.action == 'apply-dev')
+          steps.plan.outputs.exit_code == '2' &&
+          (
+            github.event_name == 'push' ||
+            (github.event_name == 'workflow_dispatch' &&
+            inputs.action == 'apply-dev')
+          )
+
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
@@ -215,9 +219,12 @@ jobs:
 
       - name: Terraform Apply
         if: |
-          github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' &&
-          inputs.action == 'apply-dev')
+          steps.plan.outputs.exit_code == '2' &&
+          (
+            github.event_name == 'push' ||
+            (github.event_name == 'workflow_dispatch' &&
+            inputs.action == 'apply-dev')
+          )
         run: terraform apply -auto-approve tfplan
 
 
@@ -306,8 +313,10 @@ jobs:
 
       - name: Configure Apply Role
         if: |
+          steps.plan.outputs.exit_code == '2' &&
           github.event_name == 'workflow_dispatch' &&
           inputs.action == 'promote-prod'
+        
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
@@ -315,7 +324,9 @@ jobs:
 
       - name: Terraform Apply
         if: |
+          steps.plan.outputs.exit_code == '2' &&
           github.event_name == 'workflow_dispatch' &&
           inputs.action == 'promote-prod'
+          
         run: terraform apply -auto-approve tfplan
 
