@@ -170,7 +170,7 @@ data "aws_region" "current" {}
 
 resource "aws_kms_key" "cloudwatch" {
   description         = "KMS key for VPC Flow Logs"
-  enable_key_rotation = true
+  enable_key_rotation = false
 
   policy = jsonencode({
     Version = "2012-10-17"
