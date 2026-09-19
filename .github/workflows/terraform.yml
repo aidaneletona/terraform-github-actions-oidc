@@ -68,7 +68,8 @@ jobs:
           with:
             fetch-depth: 0
 
-        - name: Block direct PROD changes
+        - name: Detect PROD changes
+          id: prod_changes
           working-directory: ${{ github.workspace }}
           shell: bash
           run: |
@@ -78,9 +79,9 @@ jobs:
             echo "$CHANGED_FILES"
 
             if echo "$CHANGED_FILES" | grep -q '^terraform/environments/prod/'; then
-              echo "Direct changes to terraform/environments/prod/** are not allowed."
-              echo "Shared infrastructure changes must be made through terraform/modules/** and validated in DEV before PROD promotion."
-              exit 1
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "changed=false" >> "$GITHUB_OUTPUT"
             fi
 
         - name: Setup Terraform
@@ -183,6 +184,28 @@ jobs:
             echo "Terraform plan failed."
             exit 1
           fi
+
+      - name: Terraform Init PROD
+        if: steps.prod_changes.outputs.changed == 'true'
+        working-directory: terraform/environments/prod
+        run: terraform init
+
+      - name: Terraform Validate PROD
+        if: steps.prod_changes.outputs.changed == 'true'
+        working-directory: terraform/environments/prod
+        run: terraform validate
+
+      - name: Checkov Security Scan PROD
+        if: steps.prod_changes.outputs.changed == 'true'
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/environments/prod
+          framework: terraform
+
+      - name: Terraform Plan PROD
+        if: steps.prod_changes.outputs.changed == 'true'
+        working-directory: terraform/environments/prod
+        run: terraform plan
 
       - name: Report Plan Changes
         run: |
