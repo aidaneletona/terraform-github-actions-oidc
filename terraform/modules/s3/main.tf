@@ -59,6 +59,7 @@ resource "aws_s3_bucket" "demo" {
     Project     = var.project
     Environment = var.environment
     Purpose     = var.demo_purpose
+    PromotionTest = "shared-module"
   }
 }
 
