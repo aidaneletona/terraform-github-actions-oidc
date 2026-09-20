@@ -21,7 +21,6 @@ on:
         options:
           - plan-dev
           - apply-dev
-          - promote-prod
 
 permissions:
   id-token: write
@@ -148,8 +147,7 @@ jobs:
           needs.changes.outputs.modules == 'true')) ||
         (github.event_name == 'workflow_dispatch' &&
           (inputs.action == 'plan-dev' ||
-          inputs.action == 'apply-dev')) ||
-        github.event_name == 'schedule'
+          inputs.action == 'apply-dev'))
       )
 
     environment: dev
@@ -217,17 +215,6 @@ jobs:
             echo "No changes detected."
           fi
 
-      - name: Drift Summary
-        if: github.event_name == 'schedule'
-        run: |
-          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-            echo "## DEV Drift Detection" >> "$GITHUB_STEP_SUMMARY"
-            echo "Drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
-          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-            echo "## DEV Drift Detection" >> "$GITHUB_STEP_SUMMARY"
-            echo "No drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
       - name: Configure Apply Role
         if: |
           steps.plan.outputs.exit_code == '2' &&
@@ -255,10 +242,24 @@ jobs:
 
     # PROD
   prod:
+    needs:
+      - changes
+      - dev
     if: |
-      (github.event_name == 'workflow_dispatch' &&
-      inputs.action == 'promote-prod') ||
-      github.event_name == 'schedule'
+      always() &&
+      (
+        (
+          github.event_name == 'push' &&
+          (
+            needs.changes.outputs.modules == 'true' ||
+            needs.changes.outputs.prod == 'true'
+          ) &&
+          (
+            needs.changes.outputs.modules != 'true' ||
+            needs.dev.result == 'success'
+          )
+        ) 
+      )
 
     environment: prod
     runs-on: ubuntu-latest
@@ -272,68 +273,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Verify PROD Promotion Eligibility
-      if: |
-        github.event_name == 'workflow_dispatch' &&
-        inputs.action == 'promote-prod'
-      working-directory: ${{ github.workspace }}
-      env:
-        GH_TOKEN: ${{ github.token }}
-      shell: bash
-      run: |
-        set -e
-
-        SHA="${{ github.sha }}"
-
-        PR_NUMBER=$(gh api \
-          "repos/${{ github.repository }}/commits/$SHA/pulls" \
-          --jq '[.[] | select(.merged_at != null and .base.ref == "main")][0].number // empty')
-
-        if [ -z "$PR_NUMBER" ]; then
-          echo "ERROR: No merged PR into main found."
-          exit 1
-        fi
-
-        CHANGED_FILES=$(gh api \
-          --paginate \
-          "repos/${{ github.repository }}/pulls/$PR_NUMBER/files" \
-          --jq '.[].filename')
-
-        # Shared module change → DEV must have succeeded.
-        if echo "$CHANGED_FILES" | grep -q '^terraform/modules/'; then
-
-          RUN_ID=$(gh api \
-            "repos/${{ github.repository }}/actions/runs?head_sha=$SHA&event=push" \
-            --jq '.workflow_runs[] | select(.name == "Terraform CI/CD") | .id' \
-            | head -n 1)
-
-          if [ -z "$RUN_ID" ]; then
-            echo "ERROR: No DEV workflow run found."
-            exit 1
-          fi
-
-          DEV_SUCCESS=$(gh api \
-            "repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs" \
-            --jq '[.jobs[] | select(.name == "dev" and .conclusion == "success")] | length')
-
-          if [ "$DEV_SUCCESS" -eq 0 ]; then
-            echo "ERROR: Shared change did not successfully pass DEV."
-            exit 1
-          fi
-
-          echo "Shared change passed DEV. PROD promotion allowed."
-          exit 0
-        fi
-
-        # PROD-specific change → it already passed the PROD PR checks.
-        if echo "$CHANGED_FILES" | grep -q '^terraform/environments/prod/'; then
-          echo "PROD-specific change passed the PR path. PROD promotion allowed."
-          exit 0
-        fi
-
-        echo "ERROR: No PROD-eligible change found."
-        exit 1
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -389,22 +328,12 @@ jobs:
           echo "No changes detected."
         fi
 
-    - name: Drift Summary
-      if: github.event_name == 'schedule'
-      run: |
-        if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-          echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
-          echo "Drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
-        elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-          echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
-          echo "No drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
-        fi
+
 
     - name: Configure Apply Role
       if: |
         steps.plan.outputs.exit_code == '2' &&
-        github.event_name == 'workflow_dispatch' &&
-        inputs.action == 'promote-prod'
+        github.event_name == 'push'
       
       uses: aws-actions/configure-aws-credentials@v6
       with:
@@ -414,8 +343,125 @@ jobs:
     - name: Terraform Apply
       if: |
         steps.plan.outputs.exit_code == '2' &&
-        github.event_name == 'workflow_dispatch' &&
-        inputs.action == 'promote-prod'
+        github.event_name == 'push'
         
       run: terraform apply -auto-approve tfplan
+
+
+  dev-drift:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure Plan Role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
+          aws-region: us-east-2
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        shell: bash
+        run: |
+          set +e
+          terraform plan -detailed-exitcode
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No DEV drift detected."
+            exit 0
+          elif [ "$EXIT_CODE" -eq 2 ]; then
+            echo "DEV drift detected."
+            exit 0
+          else
+            echo "DEV Terraform plan failed."
+            exit 1
+          fi
+
+      - name: DEV Drift Summary
+        if: always()
+        run: |
+          echo "## DEV Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ steps.plan.outputs.exit_code }}" = "2" ]; then
+            echo "Drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.plan.outputs.exit_code }}" = "0" ]; then
+            echo "No drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "DEV drift check failed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+        
+
+
+  prod-drift:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform/environments/prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure Plan Role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
+          aws-region: us-east-2
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        shell: bash
+        run: |
+          set +e
+          terraform plan -detailed-exitcode
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No PROD drift detected."
+            exit 0
+          elif [ "$EXIT_CODE" -eq 2 ]; then
+            echo "PROD drift detected."
+            exit 0
+          else
+            echo "PROD Terraform plan failed."
+            exit 1
+          fi
+
+      - name: PROD Drift Summary
+        if: always()
+        run: |
+          echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ steps.plan.outputs.exit_code }}" = "2" ]; then
+            echo "Drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.plan.outputs.exit_code }}" = "0" ]; then
+            echo "No drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "PROD drift check failed." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
