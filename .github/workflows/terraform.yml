@@ -241,124 +241,38 @@ jobs:
 
 
     # PROD
-prod:
-  needs:
-    - changes
-    - dev
-  if: |
-    always() &&
-    (
+  prod:
+    needs:
+      - changes
+      - dev
+    if: |
+      always() &&
       (
-        github.event_name == 'push' &&
         (
-          needs.changes.outputs.modules == 'true' ||
-          needs.changes.outputs.prod == 'true'
-        ) &&
-        (
-          needs.changes.outputs.modules != 'true' ||
-          needs.dev.result == 'success'
-        )
-      ) 
-    )
+          github.event_name == 'push' &&
+          (
+            needs.changes.outputs.modules == 'true' ||
+            needs.changes.outputs.prod == 'true'
+          ) &&
+          (
+            needs.changes.outputs.modules != 'true' ||
+            needs.dev.result == 'success'
+          )
+        ) 
+      )
 
-  environment: prod
-  runs-on: ubuntu-latest
+    environment: prod
+    runs-on: ubuntu-latest
 
-  defaults:
-    run:
-      working-directory: terraform/environments/prod
+    defaults:
+      run:
+        working-directory: terraform/environments/prod
 
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
-    with:
-      fetch-depth: 0
-
-  - name: Setup Terraform
-    uses: hashicorp/setup-terraform@v3
-
-  - name: Configure Plan Role
-    uses: aws-actions/configure-aws-credentials@v6
-    with:
-      role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
-      aws-region: us-east-2
-
-  - name: Terraform Format Check
-    run: terraform fmt -check -recursive
-
-  - name: Terraform Init
-    run: terraform init
-
-  - name: Terraform Validate
-    run: terraform validate
-
-  - name: Checkov Security Scan
-    uses: bridgecrewio/checkov-action@v12
-    with:
-      directory: terraform/environments/prod
-      framework: terraform
-
-  - name: Terraform Plan
-    id: plan
-    shell: bash
-    run: |
-      set +e
-
-      terraform plan -detailed-exitcode -out=tfplan
-
-      EXIT_CODE=$?
-      echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
-
-      if [ "$EXIT_CODE" -eq 0 ]; then
-        echo "No changes detected."
-        exit 0
-      elif [ "$EXIT_CODE" -eq 2 ]; then
-        echo "Changes detected."
-        exit 0
-      else
-        echo "Terraform plan failed."
-        exit 1
-      fi
-
-  - name: Report Plan Changes
-    run: |
-      if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-        echo "Changes detected."
-      elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-        echo "No changes detected."
-      fi
-
-
-
-  - name: Configure Apply Role
-    if: |
-      steps.plan.outputs.exit_code == '2' &&
-      github.event_name == 'push'
-    
-    uses: aws-actions/configure-aws-credentials@v6
-    with:
-      role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
-      aws-region: us-east-2
-
-  - name: Terraform Apply
-    if: |
-      steps.plan.outputs.exit_code == '2' &&
-      github.event_name == 'push'
-      
-    run: terraform apply -auto-approve tfplan
-
-
-dev-drift:
-  if: github.event_name == 'schedule'
-  runs-on: ubuntu-latest
-
-  defaults:
-    run:
-      working-directory: terraform/environments/dev
-
-  steps:
+    steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -369,99 +283,185 @@ dev-drift:
         role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
         aws-region: us-east-2
 
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+
     - name: Terraform Init
       run: terraform init
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: Checkov Security Scan
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: terraform/environments/prod
+        framework: terraform
 
     - name: Terraform Plan
       id: plan
       shell: bash
       run: |
         set +e
-        terraform plan -detailed-exitcode
+
+        terraform plan -detailed-exitcode -out=tfplan
+
         EXIT_CODE=$?
         echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
         if [ "$EXIT_CODE" -eq 0 ]; then
-          echo "No DEV drift detected."
+          echo "No changes detected."
           exit 0
         elif [ "$EXIT_CODE" -eq 2 ]; then
-          echo "DEV drift detected."
+          echo "Changes detected."
           exit 0
         else
-          echo "DEV Terraform plan failed."
+          echo "Terraform plan failed."
           exit 1
         fi
-        
-    - name: DEV Drift Summary
-      if: always()
-      run: |
-        echo "## DEV Drift Detection" >> "$GITHUB_STEP_SUMMARY"
 
-        if [ "${{ steps.plan.outputs.exit_code }}" = "2" ]; then
-          echo "Drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
-        elif [ "${{ steps.plan.outputs.exit_code }}" = "0" ]; then
-          echo "No drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
-        else
-          echo "DEV drift check failed." >> "$GITHUB_STEP_SUMMARY"
+    - name: Report Plan Changes
+      run: |
+        if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
+          echo "Changes detected."
+        elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
+          echo "No changes detected."
         fi
 
+
+
+    - name: Configure Apply Role
+      if: |
+        steps.plan.outputs.exit_code == '2' &&
+        github.event_name == 'push'
       
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformApplyRole
+        aws-region: us-east-2
+
+    - name: Terraform Apply
+      if: |
+        steps.plan.outputs.exit_code == '2' &&
+        github.event_name == 'push'
+        
+      run: terraform apply -auto-approve tfplan
 
 
-prod-drift:
-if: github.event_name == 'schedule'
-runs-on: ubuntu-latest
+  dev-drift:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
 
-defaults:
-  run:
-    working-directory: terraform/environments/prod
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
 
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  - name: Setup Terraform
-    uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-  - name: Configure Plan Role
-    uses: aws-actions/configure-aws-credentials@v6
-    with:
-      role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
-      aws-region: us-east-2
+      - name: Configure Plan Role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
+          aws-region: us-east-2
 
-  - name: Terraform Init
-    run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-  - name: Terraform Plan
-    id: plan
-    shell: bash
-    run: |
-      set +e
-      terraform plan -detailed-exitcode
-      EXIT_CODE=$?
-      echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+      - name: Terraform Plan
+        id: plan
+        shell: bash
+        run: |
+          set +e
+          terraform plan -detailed-exitcode
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
-      if [ "$EXIT_CODE" -eq 0 ]; then
-        echo "No PROD drift detected."
-        exit 0
-      elif [ "$EXIT_CODE" -eq 2 ]; then
-        echo "PROD drift detected."
-        exit 0
-      else
-        echo "PROD Terraform plan failed."
-        exit 1
-      fi
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No DEV drift detected."
+            exit 0
+          elif [ "$EXIT_CODE" -eq 2 ]; then
+            echo "DEV drift detected."
+            exit 0
+          else
+            echo "DEV Terraform plan failed."
+            exit 1
+          fi
 
-  - name: PROD Drift Summary
-    if: always()
-    run: |
-      echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+      - name: DEV Drift Summary
+        if: always()
+        run: |
+          echo "## DEV Drift Detection" >> "$GITHUB_STEP_SUMMARY"
 
-      if [ "${{ steps.plan.outputs.exit_code }}" = "2" ]; then
-        echo "Drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
-      elif [ "${{ steps.plan.outputs.exit_code }}" = "0" ]; then
-        echo "No drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
-      else
-        echo "PROD drift check failed." >> "$GITHUB_STEP_SUMMARY"
-      fi
+          if [ "${{ steps.plan.outputs.exit_code }}" = "2" ]; then
+            echo "Drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.plan.outputs.exit_code }}" = "0" ]; then
+            echo "No drift detected in DEV." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "DEV drift check failed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+        
+
+
+  prod-drift:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform/environments/prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure Plan Role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
+          aws-region: us-east-2
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        shell: bash
+        run: |
+          set +e
+          terraform plan -detailed-exitcode
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No PROD drift detected."
+            exit 0
+          elif [ "$EXIT_CODE" -eq 2 ]; then
+            echo "PROD drift detected."
+            exit 0
+          else
+            echo "PROD Terraform plan failed."
+            exit 1
+          fi
+
+      - name: PROD Drift Summary
+        if: always()
+        run: |
+          echo "## PROD Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ steps.plan.outputs.exit_code }}" = "2" ]; then
+            echo "Drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.plan.outputs.exit_code }}" = "0" ]; then
+            echo "No drift detected in PROD." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "PROD drift check failed." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
