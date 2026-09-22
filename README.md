@@ -5,86 +5,114 @@ Give the remote Github Actions AWS credentials while reducing the risk of it bei
 
 ```mermaid
 flowchart TD
-    A[Developer / GitHub Repository]
 
-    A -->|Pull Request to main| PR[Pull Request Trigger]
-    A -->|Push to main| PUSH[Push Trigger]
-    A -->|Manual Dispatch| MANUAL[Select DEV or PROD and Plan or Apply]
-    A -->|Daily Schedule| SCHEDULE[Scheduled Drift Check]
+    REPO["GitHub Repository"]
 
-    PUSH --> CHANGES[Path Filter]
-    CHANGES -->|DEV files or shared modules changed| DEV
-    CHANGES -->|PROD files or shared modules changed| PROD
+    REPO --> CICD["Normal CI/CD"]
+    REPO --> MANUAL["Manual Dispatch"]
+    REPO --> SCHEDULE["Daily Schedule"]
 
-    PR --> DEV
-    MANUAL --> DEV
-    MANUAL --> PROD
-    SCHEDULE --> DEV
-    SCHEDULE --> PROD
+    %% =========================
+    %% NORMAL CI/CD
+    %% =========================
 
-    subgraph DEV[DEV Environment]
-        D1[Checkout Repository]
-        D2[Setup Terraform]
-        D3[Request GitHub OIDC Token]
-        D4[AWS STS]
-        D5[Assume Plan Role]
-        D6[Terraform Format Check]
-        D7[Terraform Init]
-        D8[Terraform Validate]
-        D9[Checkov Security Scan]
-        D10[Terraform Plan]
+    CICD --> FEATURE["Feature Branch"]
+    FEATURE --> PUSH["git push"]
+    PUSH --> PR["Pull Request → main"]
 
-        D1 --> D2 --> D3 --> D4 --> D5
-        D5 --> D6 --> D7 --> D8 --> D9 --> D10
-    end
+    PR --> PRCHECK["PR Check"]
 
-    subgraph PROD[PROD Environment]
-        P1[Checkout Repository]
-        P2[Setup Terraform]
-        P3[Request GitHub OIDC Token]
-        P4[AWS STS]
-        P5[Assume Plan Role]
-        P6[Terraform Format Check]
-        P7[Terraform Init]
-        P8[Terraform Validate]
-        P9[Checkov Security Scan]
-        P10[Terraform Plan]
+    PRCHECK --> PRCHECKOUT["Checkout Repository"]
+    PRCHECKOUT --> DETECT["Detect PROD Changes"]
+    DETECT --> PRSETUP["Setup Terraform"]
+    PRSETUP --> PROIDC["GitHub OIDC → AWS STS → Plan Role"]
 
-        P1 --> P2 --> P3 --> P4 --> P5
-        P5 --> P6 --> P7 --> P8 --> P9 --> P10
-    end
+    PROIDC --> DEVPR["DEV<br/>fmt → init → validate → Checkov → plan"]
 
-    D9 -->|Checkov fails| BLOCK1[Pipeline Blocked]
-    P9 -->|Checkov fails| BLOCK2[Pipeline Blocked]
+    DEVPR --> PRODCHANGED{"PROD Changed?"}
+    PRODCHANGED -- No --> PASS["PR Checks Pass"]
+    PRODCHANGED -- Yes --> PRODPR["PROD<br/>init → validate → Checkov → plan"]
+    PRODPR --> PASS
 
-    D10 -->|Scheduled Run| DRIFT1[DEV Drift Summary]
-    P10 -->|Scheduled Run| DRIFT2[PROD Drift Summary]
+    PASS --> MERGE["Merge PR → main"]
+    MERGE --> MAINPUSH["Push Event on main"]
 
-    D10 -->|Push or Manual Apply| DA[DEV GitHub Environment]
-    P10 -->|Push or Manual Apply| PA[PROD GitHub Environment]
+    MAINPUSH --> FILTER["Path Filter<br/>DEV / PROD / Shared Modules"]
 
-    DA --> DOIDC[OIDC / AWS STS]
-    PA --> POIDC[OIDC / AWS STS]
+    %% =========================
+    %% DEV DEPLOYMENT
+    %% =========================
 
-    DOIDC --> DAR[Assume Apply Role]
-    POIDC --> PAR[Assume Apply Role]
+    FILTER --> DEV["DEV"]
 
-    DAR --> DAPPLY[Terraform Apply]
-    PAR --> PAPPLY[Terraform Apply]
+    DEV --> DEVCHECKOUT["Checkout + Setup Terraform"]
+    DEVCHECKOUT --> DEVPLANROLE["GitHub OIDC → AWS STS → Plan Role"]
+    DEVPLANROLE --> DEVSCAN["fmt → init → validate → Checkov"]
+    DEVSCAN --> DEVPLAN["Terraform Plan"]
+    DEVPLAN --> DEVCHANGE{"Changes Found?"}
 
-    DAPPLY --> AWS[AWS Infrastructure]
-    PAPPLY --> AWS
+    DEVCHANGE -- No --> DEVEND["DEV Complete"]
+    DEVCHANGE -- Yes --> DEVAPPLYROLE["GitHub OIDC → AWS STS → Apply Role"]
+    DEVAPPLYROLE --> DEVAPPLY["Terraform Apply"]
+    DEVAPPLY --> DEVEND
 
-    STATE[(S3 Backend: Remote State + State Locking)]
+    %% =========================
+    %% PROD DEPLOYMENT
+    %% =========================
 
-    D7 -.-> STATE
-    D10 -.-> STATE
-    DAPPLY -.-> STATE
+    DEVEND --> PROD["PROD"]
 
-    P7 -.-> STATE
-    P10 -.-> STATE
-    PAPPLY -.-> STATE
+    PROD --> PRODCHECKOUT["Checkout + Setup Terraform"]
+    PRODCHECKOUT --> PRODPLANROLE["GitHub OIDC → AWS STS → Plan Role"]
+    PRODPLANROLE --> PRODSCAN["fmt → init → validate → Checkov"]
+    PRODSCAN --> PRODPLAN["Terraform Plan"]
+    PRODPLAN --> PRODCHANGE{"Changes Found?"}
+
+    PRODCHANGE -- No --> PRODEND["PROD Complete"]
+    PRODCHANGE -- Yes --> PRODAPPLYROLE["GitHub OIDC → AWS STS → Apply Role"]
+    PRODAPPLYROLE --> PRODAPPLY["Terraform Apply"]
+    PRODAPPLY --> PRODEND
+
+    PRODEND --> AWS["AWS Infrastructure"]
+
+    %% =========================
+    %% MANUAL DISPATCH
+    %% =========================
+
+    MANUAL --> MANUALTYPE{"Action"}
+    MANUALTYPE --> PLANDEV["plan-dev"]
+    MANUALTYPE --> APPLYDEV["apply-dev"]
+
+    PLANDEV --> DEV
+    APPLYDEV --> DEV
+
+    %% =========================
+    %% SCHEDULED DRIFT
+    %% =========================
+
+    SCHEDULE --> DEVDRIFT["DEV Drift"]
+    SCHEDULE --> PRODDRIFT["PROD Drift"]
+
+    DEVDRIFT --> DEVDRIFTAUTH["OIDC → Plan Role"]
+    DEVDRIFTAUTH --> DEVDRIFTPLAN["init → plan"]
+    DEVDRIFTPLAN --> DEVDRIFTSUM["DEV Drift Summary"]
+
+    PRODDRIFT --> PRODDRIFTAUTH["OIDC → Plan Role"]
+    PRODDRIFTAUTH --> PRODDRIFTPLAN["init → plan"]
+    PRODDRIFTPLAN --> PRODDRIFTSUM["PROD Drift Summary"]
+
+    %% =========================
+    %% REMOTE STATE
+    %% =========================
+
+    STATE[("S3 Remote Backend<br/>Remote State + State Locking")]
+
+    STATE -.-> DEVSCAN
+    STATE -.-> PRODSCAN
+    STATE -.-> DEVDRIFTPLAN
+    STATE -.-> PRODDRIFTPLAN
 ```
+
 
 
 ### Pipeline

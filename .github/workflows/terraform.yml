@@ -25,8 +25,6 @@ on:
 permissions:
   id-token: write
   contents: read
-  actions: read
-  pull-requests: read
 
 jobs:
 
@@ -69,8 +67,8 @@ jobs:
           with:
             fetch-depth: 0
 
-        - name: Detect PROD changes
-          id: prod_changes
+        - name: Detect Terraform changes
+          id: terraform_changes
           working-directory: ${{ github.workspace }}
           shell: bash
           run: |
@@ -79,10 +77,22 @@ jobs:
             echo "Files changed in this pull request:"
             echo "$CHANGED_FILES"
 
-            if echo "$CHANGED_FILES" | grep -q '^terraform/environments/prod/'; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
+            if echo "$CHANGED_FILES" | grep -q '^terraform/environments/dev/'; then
+              echo "dev=true" >> "$GITHUB_OUTPUT"
             else
-              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "dev=false" >> "$GITHUB_OUTPUT"
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^terraform/environments/prod/'; then
+              echo "prod=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prod=false" >> "$GITHUB_OUTPUT"
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^terraform/modules/'; then
+              echo "modules=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "modules=false" >> "$GITHUB_OUTPUT"
             fi
 
         - name: Setup Terraform
@@ -94,43 +104,63 @@ jobs:
             role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
             aws-region: us-east-2
 
-        - name: Terraform Format Check
+        - name: Terraform Format Check DEV
           run: terraform fmt -check -recursive
 
-        - name: Terraform Init
+        - name: Terraform Init DEV
+          if: |
+            steps.terraform_changes.outputs.dev == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
           run: terraform init
 
-        - name: Terraform Validate
+        - name: Terraform Validate DEV
+          if: |
+            steps.terraform_changes.outputs.dev == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
           run: terraform validate
 
-        - name: Checkov Security Scan
+        - name: Checkov Security Scan DEV
+          if: |
+            steps.terraform_changes.outputs.dev == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
           uses: bridgecrewio/checkov-action@v12
           with:
             directory: terraform/environments/dev
             framework: terraform
 
-        - name: Terraform Plan
-          run: terraform plan 
+        - name: Terraform Plan DEV
+          if: |
+            steps.terraform_changes.outputs.dev == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
+          run: terraform plan
 
         - name: Terraform Init PROD
-          if: steps.prod_changes.outputs.changed == 'true'
+          if: |
+            steps.terraform_changes.outputs.prod == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
           working-directory: terraform/environments/prod
           run: terraform init
 
         - name: Terraform Validate PROD
-          if: steps.prod_changes.outputs.changed == 'true'
+          if: |
+            steps.terraform_changes.outputs.prod == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
           working-directory: terraform/environments/prod
           run: terraform validate
 
         - name: Checkov Security Scan PROD
-          if: steps.prod_changes.outputs.changed == 'true'
+          if: |
+            steps.terraform_changes.outputs.prod == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
           uses: bridgecrewio/checkov-action@v12
           with:
             directory: terraform/environments/prod
             framework: terraform
 
         - name: Terraform Plan PROD
-          if: steps.prod_changes.outputs.changed == 'true'
+          if: |
+            steps.terraform_changes.outputs.prod == 'true' ||
+            steps.terraform_changes.outputs.modules == 'true'
           working-directory: terraform/environments/prod
           run: terraform plan
 
