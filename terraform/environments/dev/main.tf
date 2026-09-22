@@ -21,5 +21,3 @@ module "network" {
 
   environment = "dev"
 }
-
-##TESTING DEV##
