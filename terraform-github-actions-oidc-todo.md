@@ -547,40 +547,58 @@ AWS Infrastructure
 
 Your final README should include:
 
+## Project Introduction
+
 - [x] Project title
 - [x] Project overview
 - [x] Security problem being solved
 - [x] Architecture diagram
 - [x] Pipeline workflow
-- [x] Technologies used
 
+
+### Core Infrastructure / CI/CD
+- [x] Technologies Used
 - [x] Terraform explanation
 - [x] GitHub Actions explanation
-
-- [x] OIDC explanation
-- [ ] Explain the AWS IAM OIDC identity provider and its role in trusting GitHub
+- [x] GitHub OIDC explanation
+- [x] AWS IAM OIDC Identity Provider explanation
 - [x] AWS STS explanation
-- [x] IAM trust policy explanation
-- [x] IAM permissions policy explanation
-- [ ] Explain separate Plan and Apply IAM roles
-- [ ] Document least-privilege design decisions
+- [x] IAM Trust Policy explanation
+- [x] IAM Permissions Policy explanation — UPDATE for separate Plan and Apply roles
+- [x] Plan Role vs Apply Role explanation
+- [x] Checkov explanation
+
+### AWS Infrastructure
+- [x] Amazon VPC explanation
+- [x] Amazon S3 explanation
+- [x] AWS KMS explanation
+- [x] Amazon CloudWatch explanation
+- [x] AWS CloudTrail explanation — IF you've already written this section
+
+## IAM
+
+- [x] Document least-privilege design decisions
 - [x] Document why each major permission is required
 
-- [x] Remote state design
-- [ ] Explain why the S3 backend requires `s3:ListBucket`
-- [ ] Document Terraform state locking
+## Terraform State Design
 
+- [x] Remote state design
+- [x] Explain why the S3 backend requires `s3:ListBucket`
+- [x] Document Terraform state locking
+
+## Security Controls
 
 - [x] Security controls
-- [ ] Document GitHub `main` branch protection / repository rules
-- [ ] Explain separate Terraform DEV and PROD environments
-- [ ] Explain DEV and PROD GitHub Environments and deployment approvals
-- [ ] Document DEV-first → PROD promotion protection
-- [ ] Document Checkov security scanning and intentional suppressions
-- [ ] Document scheduled Terraform drift detection
+- [x] Document GitHub `main` branch protection / repository rules
+- [x] Explain separate Terraform DEV and PROD environments
+- [x] Explain DEV and PROD GitHub Environments and deployment approvals
+- [x] Document DEV-first → PROD promotion protection
+- [x] Document Checkov security scanning and intentional suppressions
+- [x] Document scheduled Terraform drift detection
 
 
-- [x] How to run the project
+
+## Testing and Evidence
 
 - [ ] Example Terraform plan
 - [ ] Example successful deployment
@@ -588,6 +606,8 @@ Your final README should include:
 - [ ] Example failed security test
 - [ ] Screenshots
 
+## Usage and Project Scope
+- [x] How to run the project
 - [x] Limitations
 - [x] Future improvements
 
