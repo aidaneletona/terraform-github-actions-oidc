@@ -45,7 +45,10 @@ jobs:
         uses: dorny/paths-filter@v3
         id: filter
         with:
+          list-files: shell
           filters: |
+            all:
+              - '**'
             dev:
               - 'terraform/environments/dev/**'
             prod:
@@ -53,116 +56,147 @@ jobs:
             modules:
               - 'terraform/modules/**'
 
+      - name: Print changed files
+        shell: bash
+        run: |
+          echo "All files changed in this push:"
+          echo "${{ steps.filter.outputs.all_files }}"
+
+          echo "Terraform routing:"
+          echo "DEV=${{ steps.filter.outputs.dev }}"
+          echo "PROD=${{ steps.filter.outputs.prod }}"
+          echo "MODULES=${{ steps.filter.outputs.modules }}"
+
   pr-check:
-      if: github.event_name == 'pull_request'
-      runs-on: ubuntu-latest
 
-      defaults:
-        run:
-          working-directory: terraform/environments/dev
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
 
-      steps:
-        - name: Checkout repository
-          uses: actions/checkout@v4
-          with:
-            fetch-depth: 0
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
 
-        - name: Detect Terraform changes
-          id: terraform_changes
-          working-directory: ${{ github.workspace }}
-          shell: bash
-          run: |
-            CHANGED_FILES=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")
+    steps:
 
-            echo "Files changed in this pull request:"
-            echo "$CHANGED_FILES"
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-            if echo "$CHANGED_FILES" | grep -q '^terraform/environments/dev/'; then
-              echo "dev=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "dev=false" >> "$GITHUB_OUTPUT"
-            fi
+    - name: Detect Terraform changes
+      id: terraform_changes
+      uses: dorny/paths-filter@v3
+      with:
+        list-files: shell
+        filters: |
+          all:
+            - '**'
+          dev:
+            - 'terraform/environments/dev/**'
+          prod:
+            - 'terraform/environments/prod/**'
+          modules:
+            - 'terraform/modules/**'
 
-            if echo "$CHANGED_FILES" | grep -q '^terraform/environments/prod/'; then
-              echo "prod=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "prod=false" >> "$GITHUB_OUTPUT"
-            fi
+    - name: Print changed files
+      shell: bash
+      run: |
+        echo "All files changed in this pull request:"
+        echo "${{ steps.terraform_changes.outputs.all_files }}"
 
-            if echo "$CHANGED_FILES" | grep -q '^terraform/modules/'; then
-              echo "modules=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "modules=false" >> "$GITHUB_OUTPUT"
-            fi
+        echo "Terraform routing:"
+        echo "DEV=${{ steps.terraform_changes.outputs.dev }}"
+        echo "PROD=${{ steps.terraform_changes.outputs.prod }}"
+        echo "MODULES=${{ steps.terraform_changes.outputs.modules }}"
 
-        - name: Setup Terraform
-          uses: hashicorp/setup-terraform@v3
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
 
-        - name: Configure Plan Role
-          uses: aws-actions/configure-aws-credentials@v6
-          with:
-            role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
-            aws-region: us-east-2
+    - name: Configure Plan Role
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
+        aws-region: us-east-2
 
-        - name: Terraform Format Check DEV
-          run: terraform fmt -check -recursive
+    - name: Terraform Format Check DEV
+      if: |
+        steps.terraform_changes.outputs.dev == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      run: terraform fmt -check -recursive
 
-        - name: Terraform Init DEV
-          if: |
-            steps.terraform_changes.outputs.dev == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          run: terraform init
+    - name: Terraform Init DEV
+      if: |
+        steps.terraform_changes.outputs.dev == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      run: terraform init
 
-        - name: Terraform Validate DEV
-          if: |
-            steps.terraform_changes.outputs.dev == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          run: terraform validate
+    - name: Terraform Validate DEV
+      if: |
+        steps.terraform_changes.outputs.dev == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      run: terraform validate
 
-        - name: Checkov Security Scan DEV
-          if: |
-            steps.terraform_changes.outputs.dev == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          uses: bridgecrewio/checkov-action@v12
-          with:
-            directory: terraform/environments/dev
-            framework: terraform
+    - name: Checkov Security Scan DEV
+      if: |
+        steps.terraform_changes.outputs.dev == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: terraform/environments/dev
+        framework: terraform
 
-        - name: Terraform Plan DEV
-          if: |
-            steps.terraform_changes.outputs.dev == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          run: terraform plan
+    - name: Terraform Plan DEV
+      if: |
+        steps.terraform_changes.outputs.dev == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      run: terraform plan
 
-        - name: Terraform Init PROD
-          if: |
-            steps.terraform_changes.outputs.prod == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          working-directory: terraform/environments/prod
-          run: terraform init
+    - name: Terraform Format Check PROD
+      if: |
+        steps.terraform_changes.outputs.prod == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      working-directory: terraform/environments/prod
+      run: terraform fmt -check -recursive
 
-        - name: Terraform Validate PROD
-          if: |
-            steps.terraform_changes.outputs.prod == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          working-directory: terraform/environments/prod
-          run: terraform validate
+    - name: Terraform Init PROD
+      if: |
+        steps.terraform_changes.outputs.prod == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      working-directory: terraform/environments/prod
+      run: terraform init
 
-        - name: Checkov Security Scan PROD
-          if: |
-            steps.terraform_changes.outputs.prod == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          uses: bridgecrewio/checkov-action@v12
-          with:
-            directory: terraform/environments/prod
-            framework: terraform
+    - name: Terraform Validate PROD
+      if: |
+        steps.terraform_changes.outputs.prod == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      working-directory: terraform/environments/prod
+      run: terraform validate
 
-        - name: Terraform Plan PROD
-          if: |
-            steps.terraform_changes.outputs.prod == 'true' ||
-            steps.terraform_changes.outputs.modules == 'true'
-          working-directory: terraform/environments/prod
-          run: terraform plan
+    - name: Checkov Security Scan PROD
+      if: |
+        steps.terraform_changes.outputs.prod == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: terraform/environments/prod
+        framework: terraform
+
+    - name: Terraform Plan PROD
+      if: |
+        steps.terraform_changes.outputs.prod == 'true' ||
+        steps.terraform_changes.outputs.modules == 'true'
+      working-directory: terraform/environments/prod
+      run: terraform plan
+
+    - name: Terraform Format Check MODULES
+      if: steps.terraform_changes.outputs.modules == 'true'
+      working-directory: terraform/modules
+      run: terraform fmt -check -recursive
+
+    - name: Checkov Security Scan MODULES
+      if: steps.terraform_changes.outputs.modules == 'true'
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: terraform/modules
+        framework: terraform
 
 
     # DEV
@@ -237,14 +271,6 @@ jobs:
             exit 1
           fi
 
-      - name: Report Plan Changes
-        run: |
-          if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-            echo "Changes detected."
-          elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-            echo "No changes detected."
-          fi
-
       - name: Configure Apply Role
         if: |
           steps.plan.outputs.exit_code == '2' &&
@@ -301,8 +327,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -349,16 +373,6 @@ jobs:
           echo "Terraform plan failed."
           exit 1
         fi
-
-    - name: Report Plan Changes
-      run: |
-        if [ "${{ steps.plan.outputs.exit_code }}" -eq 2 ]; then
-          echo "Changes detected."
-        elif [ "${{ steps.plan.outputs.exit_code }}" -eq 0 ]; then
-          echo "No changes detected."
-        fi
-
-
 
     - name: Configure Apply Role
       if: |
