@@ -118,11 +118,7 @@ flowchart TD
 
  A git push from a feature branch triggers the computer to start the workflow. GitHubActions is granted permissions to request an OIDC token from GitHub. Then it's granted permission to read the files save in Terraform-Github-Actions-OIDC repository. It starts running on latest version of Ubuntu. It requests an AssumeRoleWithIdentity to the IAM role GitHubActionsTerraformRole. It provides an ID token from Github OIDC provider in the request, to AWS STS. 
 
- It first checks if the Terraform-Github-Actions-OIDC repository is formatted correctly. 
 
-Then it intializes the S3 Backend in versions.tf and downloads the AWS provider that it can communicate to the cloud, such as creating resources or API calls. 
-
-After initiliation it validates the code if it's written in correct Terraform syntax and that it's readable, then creates a plan of the new version of the cloud infrastructure. It contains what changes will be made, such as what resources will be destroyed or added, which I can view in the workflow logs. Finally it applies the changes, using that Terraform plan, updating the cloud infrastructure in AWS.
 
 ## Pull Request Pipeline
 
@@ -138,8 +134,8 @@ First it authenticates itself, requesting the GitHub OIDC provider to give it an
 
 For this part of the workflow, GItHubActions only assumes the plan role for the pull request. It downloads GitHub's Action's organization and 'checkout', the repository inside that contains the code for the runner. Next it installs Terraform onto itself, so it can read and write in Terraform code.
 
+ It first checks if the Terraform-Github-Actions-OIDC repository is formatted correctly.  Then it intializes the S3 Backend in versions.tf and downloads the AWS provider that it can communicate to the cloud, such as creating resources or API calls. After initiliation it validates the code if it's written in correct Terraform syntax and that it's readable, then creates a plan of the new version of the cloud infrastructure. It contains what changes will be made, such as what resources will be destroyed or added, which I can view in the workflow logs.
 
-The workflow verifies its format, the initialization, validation of code, and if it passes the checkov scan. Finally it performs a terraform plan to see what changes it would make to the AWS infrastructure, if any. 
 
 
 If the directory passes all the checks, the pull request is successful and can be merged safely in the main branch. Once it’s merged, the same checks are performed again, as this is an entirely new workflow and has no recollection of change detection in the PR check. If it detects a  change in the Dev and Prod environments without a change in Modules, it will perform terraform checks, until terraform plan, where it will first assume the AWS Plan Role. If authenticated successfully it will perform a terraform plan. If there are any changes to be made in the AWS infrastructure, the workflow will then attempt to assume the ApplyRole. If authentication is successful, it will then perform Terraform Apply. 
@@ -148,7 +144,7 @@ If the directory passes all the checks, the pull request is successful and can b
 If a change was made to modules, the change will go through dev first, and if the change is successful the GitHubActions workflow will ask the required reviewer if it would like to apply the same changes to Prod. If approved the changes will be applied to Prod. 
 
 ## Schedule Pipeline 
-The Schedule pipeline is very similar to the PR/Git Push Pipeline. A scheduled action triggers the computer to start the workflow. GitHubActions is granted permissions to request an OIDC token from GitHub. Then it's granted permission to read the files saved in the Terraform-Github-Actions-OIDC repository. It starts running on the latest version of Ubuntu. The default directory it runs its commands in is set at terraform/environments/dev. The computer then accesses GitHub's Action's organization and 'checkout', the repository inside that contains the code for the runner. 
+The scheduled pipeline runs every day at **15:00 UTC**, using the latest commit on the default branch. It starts the Terraform workflow automatically, without a pull request or push, and checks the DEV and PROD environments for drift. GitHubActions is granted permissions to request an OIDC token from GitHub. Then it's granted permission to read the files saved in the Terraform-Github-Actions-OIDC repository. It starts running on the latest version of Ubuntu. The default directory it runs its commands in is set at terraform/environments/dev. The computer then accesses GitHub's Action's organization and 'checkout', the repository inside that contains the code for the runner. 
 
 
 It begins a series of terraform checks. The workflow verifies its format, the initialization, validation of code, and if it passes the checkov scan. Finally it performs a terraform plan to see what changes it would make to the AWS infrastructure. If there’s a difference between the current AWS infrastructure and the desired infrastructure it will print “Changes detected” message in the GitHubActions log, then provide a Drift summary of what changes would be made from the Terraform Plan Log.
