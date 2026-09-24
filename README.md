@@ -297,7 +297,9 @@ to S3 encryption, access logging, lifecycle configuration, and VPC Flow Logs.
 
 - **Required Viewers** - When a workflow is about to be deployed in an environment, such as dev or prod, it requires the approval of an required viewer.
 
-- **Protection from main** - Modifications to the repository cannot come from pushes from the main branch. They must be merged from PR’s, so it can be validated through a series of checks and follow specific deployment configuration.
+- **Main Branch Protection** - Modifications to the repository cannot come from pushes from the main branch. They must be merged from PR’s, so it can be validated through a series of checks and follow specific deployment configuration.
+
+- Pull request branches must also be up to date with `main` before they can be merged. This ensures the required checks run against the latest version of the codebase.
 
 ## How to Run THe Project
 
