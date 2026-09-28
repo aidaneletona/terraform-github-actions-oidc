@@ -464,9 +464,20 @@ Do not modularize everything just for the sake of having modules. Use them where
 - [x] Verify no AWS access keys exist in GitHub secrets
 - [x] Verify no AWS credentials are committed to Git
 
+
+
+# Phase 18 — Add Additional features
+
+- [x] Add separate development and production environments
+- [x] Use separate IAM roles for plan and apply
+- [x] Add GitHub Environment approvals
+- [x] Add Terraform state locking using the current supported AWS backend approach
+- [x] Add Checkov
+- [x] Drift Detection + scheduled `terraform plan`
+
 ---
 
-# Phase 18 — Test the Security Controls
+# Phase 19 — Test the Security Controls
 
 Do not only test the successful path.
 
@@ -482,15 +493,6 @@ Do not only test the successful path.
 These tests demonstrate that the security controls actually enforce something.
 
 ---
-
-# Phase 19 — Add Additional features
-
-- [x] Add separate development and production environments
-- [x] Use separate IAM roles for plan and apply
-- [x] Add GitHub Environment approvals
-- [x] Add Terraform state locking using the current supported AWS backend approach
-- [x] Add Checkov
-- [x] Drift Detection + scheduled `terraform plan`
 
 # Phase 20 — Logging and Audit Evidence
 
@@ -600,7 +602,6 @@ Your final README should include:
 
 ## Testing and Evidence
 
-- [ ] Example Terraform plan
 - [ ] Example successful deployment
 - [ ] Document test deployment failures (From phase 18)
 - [ ] Example failed security test
@@ -622,7 +623,7 @@ Collect screenshots or sanitized output showing:
 - [ ] GitHub pull request workflow
 - [ ] GitHub Actions successful deployment
 - [ ] AWS OIDC identity provider
-- [ ] IAM role trust policy
+- [x] IAM role trust policy
 - [ ] IAM role permissions
 - [ ] CloudTrail role-assumption event
 - [ ] Remote Terraform state bucket
