@@ -475,37 +475,140 @@ Do not modularize everything just for the sake of having modules. Use them where
 - [x] Add Checkov
 - [x] Drift Detection + scheduled `terraform plan`
 
----
-
 # Phase 19 — Test the Security Controls
 
-Do not only test the successful path.
+## GitHub repository rules
 
-- [x] Change the OIDC trust policy to an incorrect repository and confirm authentication fails
-- [x] Restore the correct repository condition
-- [x] Remove a required IAM permission and confirm Terraform fails
-- [x] Restore the required permission
-- [x] Introduce invalid Terraform syntax and confirm validation fails
-- [x] Introduce bad formatting and confirm the formatting check fails
-- [x] Attempt deployment from an unauthorized branch if practical
-- [x] Confirm deployment restrictions work
+- [x] Attempt a direct push to `main` and confirm GitHub rejects it because a pull request and `pr-check` are required.
+- [ ] Confirm a pull request cannot merge while `pr-check` is failing.
+- [ ] Confirm a passing `pr-check` allows the pull request to merge under the repository rules.
+- [ ] Attempt deployment from an unauthorized branch and confirm the deployment job is blocked or its OIDC role assumption is denied. Record which control blocked it.
 
-These tests demonstrate that the security controls actually enforce something.
+## OIDC role trust
 
----
+- [ ] Set the Plan role's trusted repository `sub` to an incorrect value; confirm its credential step fails with `sts:AssumeRoleWithWebIdentity`.
+- [ ] Restore the Plan role's correct trust policy and confirm role assumption succeeds.
+- [ ] Set the Apply role's trusted repository `sub` to an incorrect value; run a job that reaches its credential step and confirm role assumption fails.
+- [ ] Restore the Apply role's correct trust policy and confirm role assumption succeeds.
+- [ ] Confirm the Apply role cannot be assumed from a job context outside its allowed `dev` or `prod` environment.
+- [ ] Confirm the repository or environment restrictions that limit deployment to `main` work as intended.
+
+## Separate Plan and Apply permissions
+
+- [x] Remove a required IAM permission and confirm Terraform fails; then restore the permission.
+- [ ] Confirm the Plan role can complete a plan for both dev and prod.
+- [ ] Confirm the Plan role cannot perform a representative infrastructure write action. Use an IAM policy simulation or a controlled test; do not apply a plan with the Plan role to production.
+- [ ] Confirm the Apply role can apply an approved, expected change.
+- [ ] Confirm dev and prod use their intended state files and do not modify each other's resources.
+- [ ] Confirm the Apply role can write `dev/last-applied-modules` in the state bucket.
+- [ ] Confirm the Plan role can read `dev/last-applied-modules` for the PROD verification step but cannot overwrite it.
+
+## Code and IaC checks
+
+- [x] Introduce invalid Terraform syntax and confirm validation fails.
+- [x] Introduce bad Terraform formatting and confirm the formatting check fails.
+- [ ] Introduce a temporary Terraform configuration that Checkov rejects; confirm `pr-check` fails, then remove it.
+- [ ] Confirm the restored, valid configuration passes formatting, validation, and Checkov.
+
+## File-change routing
+
+- [ ] Change only `terraform/environments/dev/`. Confirm the push runs the dev job and skips prod. Save the job graph and changed-file routing output.
+- [ ] Change only `terraform/environments/prod/`, with the current modules already verified in DEV. Confirm the push skips dev and runs prod. Save the job graph and routing output.
+- [ ] Change a shared file under `terraform/modules/`. Confirm the pull request checks both environments and the push runs DEV before PROD. Save the routing output and job graph.
+- [ ] For a shared module change, cause DEV to fail in a controlled run. Confirm PROD is skipped in that same run. Save the job graph showing DEV failed and PROD skipped, then restore the change.
+
+## Manual DEV runs
+
+- [ ] Run `workflow_dispatch` with `plan-dev` when DEV has a proposed change. Confirm Plan runs, Configure Apply Role and Apply are skipped, and the verified module record is not updated. Save the run steps.
+- [ ] Run `workflow_dispatch` with `apply-dev` for an intended DEV change. Confirm Plan, Configure Apply Role, Apply, and Record module version verified in DEV succeed. Save the plan and successful steps.
+
+## Manual PROD runs
+
+- [ ] Confirm the manual-run menu offers `plan-dev`, `apply-dev`, `plan-prod`, and `apply-prod`.
+- [ ] Run `plan-prod` from `main` with a proposed PROD change. Confirm Plan runs while the DEV module-verification step, Configure Apply Role, and Apply are skipped. Save the run steps.
+- [ ] Run `apply-prod` from `main` with modules already verified in DEV and an intended PROD change. Confirm module verification, Plan, Configure Apply Role, and Apply succeed. Save the verification result, plan, and Apply steps.
+- [ ] Run `plan-prod` or `apply-prod` from a branch other than `main`. Confirm the PROD job is skipped. Save the job graph.
+
+## DEV module verification before PROD
+
+- [ ] Confirm a successful DEV apply records the Git tree hash of `terraform/modules/` in `dev/last-applied-modules`.
+- [ ] Confirm a failed DEV apply does not update the verified module record.
+- [ ] Merge a module change without successfully applying or verifying it in DEV. Run `apply-prod` and confirm the module-verification step fails before PROD can apply. Save the failure.
+- [ ] Successfully run `apply-dev` for that module version, then run `apply-prod`. Confirm the module comparison passes and PROD can apply its pending changes.
+- [ ] After DEV succeeds but PROD is not applied, start a new manual `apply-prod` run without another file change. Confirm PROD can plan and apply the pending changes.
+- [ ] Confirm a missing or unreadable `dev/last-applied-modules` record causes the PROD verification step to fail and prevents Apply.
+
+## No-change plans and failed plans
+
+- [ ] Run a push that produces a no-change DEV plan. Confirm Configure Apply Role runs, Terraform Apply is skipped, and the verified module version is recorded. Save the plan result and steps.
+- [ ] Run a push that produces a no-change PROD plan. Confirm Configure Apply Role and Terraform Apply are skipped. Save the plan result and skipped steps.
+- [ ] Run `apply-dev` with no DEV changes. Confirm Apply is skipped and the current module version is still recorded as verified.
+- [ ] Run `apply-prod` with no PROD changes and verified modules. Confirm Apply is skipped.
+- [ ] Cause Terraform Plan to fail in a controlled run. Confirm the job fails and no Apply or DEV module-record update occurs. Restore the working configuration.
+
+## PROD environment approval
+
+- [ ] If required reviewers are configured for `prod`, confirm the PROD job waits for approval before its steps run.
+- [ ] Reject a controlled PROD deployment and confirm no PROD Apply runs.
+- [ ] Approve an intended PROD deployment and confirm it proceeds through verification, checks, Plan, and Apply as appropriate.
+
+## Scheduled drift checks
+
+- [ ] Confirm a scheduled run checks the latest default-branch configuration.
+- [ ] Confirm the scheduled run plans against both dev and prod state.
+- [ ] Confirm the scheduled run does not automatically apply changes.
+- [ ] Make a controlled resource change, confirm drift is reported, and restore the resource through the normal deployment path.
+- [ ] Confirm `dev-drift` and `prod-drift` use the Plan role, produce separate summaries, and run no Apply job. Save the job graph and summaries.
+
+For each test, document:
+- The changed setting or test input.
+- The workflow run, job, and step reached.
+- The expected and observed result.
+- The screenshot or log showing the result.
+- How the working configuration was restored.
 
 # Phase 20 — Logging and Audit Evidence
 
-- [x] Use CloudTrail to verify `AssumeRoleWithWebIdentity` activity
-- [x] Identify the GitHub Actions role in AWS activity
-- [x] Capture evidence of successful role assumption
-- [x] Capture GitHub Actions workflow logs
-- [x] Capture a successful Terraform plan
-- [x] Capture a successful deployment
-- [x] Capture at least one intentionally failed security test
-- [x] Do not expose credentials or sensitive values in screenshots
+One screenshot can support multiple tests. For other completed tests,
+record the workflow-run link, expected result, observed result, and restoration.
 
----
+## Existing evidence
+
+- [x] Capture the earlier combined role's incorrect repository trust policy and matching failed OIDC credential step.
+- [x] Use CloudTrail to identify a GitHub Actions assumed role making AWS API calls.
+- [x] Capture GitHub Actions workflow logs and a successful Terraform plan.
+- [x] Capture evidence of a successful Terraform deployment.
+- [x] Capture GitHub rejecting a direct push to `main`.
+
+## Current security controls
+
+- [ ] Capture the current Plan and Apply roles' incorrect repository trust policies and matching authentication failures. Link the successful runs after restoring them.
+- [ ] Capture a failing and passing `pr-check`. Include the Checkov rejection test in the evidence.
+- [ ] Capture the Plan role being denied a representative infrastructure write action.
+- [ ] Capture an unauthorized-branch deployment being blocked and identify which control blocked it.
+
+## Deployment gates
+
+- [ ] Capture a shared-module run showing DEV failed and PROD was skipped.
+- [ ] Capture PROD being blocked because the current modules were not verified in DEV, then capture verification passing after DEV succeeds.
+- [ ] Capture a manual plan showing Apply skipped and a manual apply showing successful deployment. Link the corresponding DEV and PROD runs.
+- [ ] Capture the PROD approval gate, if configured. Link the rejected deployment showing no Apply ran.
+
+## Drift and environment separation
+
+- [ ] Capture a scheduled run showing separate DEV and PROD drift summaries and no Apply job.
+- [ ] Document the DEV and PROD state locations without exposing state contents or secrets.
+
+## Supporting test records
+
+- [ ] Link the remaining Phase 19 test runs, including file routing, no-change plans, failed plans, module-record updates, and applying pending PROD changes without a new file change.
+- [ ] Record each test's expected result, observed result, and how the working configuration was restored.
+
+## Screenshot hygiene
+
+- [x] Keep credentials and sensitive values out of screenshots.
+
+
 
 # Phase 21 — Architecture Diagram
 
