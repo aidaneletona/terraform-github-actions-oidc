@@ -21,6 +21,8 @@ on:
         options:
           - plan-dev
           - apply-dev
+          - plan-prod 
+          - apply-prod
 
 permissions:
   id-token: write
@@ -273,7 +275,8 @@ jobs:
 
       - name: Configure Apply Role
         if: |
-          steps.plan.outputs.exit_code == '2' &&
+          (steps.plan.outputs.exit_code == '0' ||
+          steps.plan.outputs.exit_code == '2') &&
           (
             github.event_name == 'push' ||
             (github.event_name == 'workflow_dispatch' &&
@@ -295,6 +298,23 @@ jobs:
           )
         run: terraform apply -auto-approve tfplan
 
+      - name: Record module version verified in DEV
+        if: |
+          success() &&
+          (steps.plan.outputs.exit_code == '0' ||
+          steps.plan.outputs.exit_code == '2') &&
+          (
+            github.event_name == 'push' ||
+            (github.event_name == 'workflow_dispatch' &&
+            inputs.action == 'apply-dev')
+          )
+        shell: bash
+        run: |
+          git rev-parse HEAD:terraform/modules > /tmp/dev-modules-version
+
+          aws s3 cp \
+            /tmp/dev-modules-version \
+            s3://terraform-oidc-state-aidan/dev/last-applied-modules
 
     # PROD
   prod:
@@ -302,20 +322,24 @@ jobs:
       - changes
       - dev
     if: |
-      always() &&
+      always() && 
       (
+        github.event_name == 'push' &&
         (
-          github.event_name == 'push' &&
-          (
-            needs.changes.outputs.modules == 'true' ||
-            needs.changes.outputs.prod == 'true'
-          ) &&
-          (
-            needs.changes.outputs.modules != 'true' ||
-            needs.dev.result == 'success'
-          )
-        ) 
+          needs.changes.outputs.modules == 'true' ||
+          needs.changes.outputs.prod == 'true'
+        ) &&
+        (
+          needs.changes.outputs.modules != 'true' ||
+          needs.dev.result == 'success'
+        ) ||
+
+        github.event_name == 'workflow_dispatch' &&
+              github.ref == 'refs/heads/main' &&
+              (inputs.action == 'plan-prod' ||
+              inputs.action == 'apply-prod')
       )
+  
 
     environment: prod
     runs-on: ubuntu-latest
@@ -336,6 +360,29 @@ jobs:
       with:
         role-to-assume: arn:aws:iam::523109312572:role/GitHubActionsTerraformPlanRole
         aws-region: us-east-2
+  
+    - name: Verify current modules succeeded in DEV
+      if: |
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' &&
+        inputs.action == 'apply-prod'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        aws s3 cp \
+          s3://terraform-oidc-state-aidan/dev/last-applied-modules \
+          /tmp/dev-modules-version
+
+        dev_version="$(cat /tmp/dev-modules-version)"
+        current_version="$(git rev-parse HEAD:terraform/modules)"
+
+        if [ "$current_version" != "$dev_version" ]; then
+          echo "Current modules have not succeeded in DEV. Blocking PROD apply."
+          exit 1
+        fi
+
+        echo "Current modules match the version verified in DEV."
 
     - name: Terraform Format Check
       run: terraform fmt -check -recursive
@@ -377,7 +424,11 @@ jobs:
     - name: Configure Apply Role
       if: |
         steps.plan.outputs.exit_code == '2' &&
-        github.event_name == 'push'
+        (
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.action == 'apply-prod')
+        )
       
       uses: aws-actions/configure-aws-credentials@v6
       with:
@@ -387,7 +438,11 @@ jobs:
     - name: Terraform Apply
       if: |
         steps.plan.outputs.exit_code == '2' &&
-        github.event_name == 'push'
+        (
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.action == 'apply-prod')
+        )
         
       run: terraform apply -auto-approve tfplan
 
