@@ -583,7 +583,7 @@ record the workflow-run link, expected result, observed result, and restoration.
 ## Current security controls
 
 - [ ] Capture the current Plan and Apply roles' incorrect repository trust policies and matching authentication failures. Link the successful runs after restoring them.
-- [ ] Capture a failing and passing `pr-check`. Include the Checkov rejection test in the evidence.
+- [x] Capture a failing and passing `pr-check`. Include the Checkov rejection test in the evidence.
 - [ ] Capture the Plan role being denied a representative infrastructure write action.
 - [ ] Capture an unauthorized-branch deployment being blocked and identify which control blocked it.
 

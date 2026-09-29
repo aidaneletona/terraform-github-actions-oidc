@@ -128,6 +128,7 @@ resource "aws_s3_bucket" "logs" {
 
   # checkov:skip=CKV2_AWS_62:Event notifications are not required for the access logs bucket
   # checkov:skip=CKV_AWS_144:Cross-region replication is outside the scope of this development environment
+  # checkov:skip=CKV_AWS_145:S3 server access log destination uses SSE-S3 because this delivery method does not support SSE-KMS
 
   bucket = "${var.demo_bucket}-logs"
 
