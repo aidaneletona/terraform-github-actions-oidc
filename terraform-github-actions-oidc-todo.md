@@ -466,28 +466,97 @@ Do not modularize everything just for the sake of having modules. Use them where
 
 
 
-# Phase 18 — Add Additional features
+# Phase 18 — Add Additional Features
 
-- [x] Add separate development and production environments
-- [x] Use separate IAM roles for plan and apply
-- [x] Add GitHub Environment approvals
-- [x] Add Terraform state locking using the current supported AWS backend approach
-- [x] Add Checkov
-- [x] Drift Detection + scheduled `terraform plan`
+## Environments and deployment access
+
+- [x] Add separate development and production environments.
+- [x] Use separate remote state files for DEV and PROD.
+- [x] Use separate IAM roles for Plan and Apply.
+- [x] Use GitHub OIDC to obtain temporary AWS credentials.
+- [x] Restrict Apply-role trust to the allowed GitHub environments.
+- [x] Add GitHub Environment approvals.
+- [x] Restrict deployment to the intended branch through workflow conditions and environment rules.
+- [x] Require pull requests and a passing `pr-check` before merging to `main`.
+- [x] Add Terraform state locking using the current supported AWS backend approach.
+
+## Pull-request checks
+
+- [x] Run Terraform formatting, initialization, validation, and planning before merge.
+- [x] Add Checkov security scanning.
+- [x] Check shared modules through the DEV and PROD configurations that use them.
+- [x] Check formatting directly under `terraform/modules/`.
+- [x] Document Checkov exceptions with resource-specific reasons.
+- [x] Clear saved `CHECKOV_RESULTS` after scans to prevent repeated reports in later logs.
+
+## File-change routing
+
+- [x] Detect changes under DEV, PROD, and shared module paths.
+- [x] Print changed files and routing results in workflow logs.
+- [x] Route DEV-only changes to DEV.
+- [x] Route PROD-only changes to PROD.
+- [x] Route shared module changes through DEV before PROD.
+- [x] Block PROD in the same run when DEV fails for a shared module change.
+
+## Plan and Apply behavior
+
+- [x] Use Terraform's detailed plan exit codes to distinguish no changes, proposed changes, and errors.
+- [x] Save a Terraform plan and apply that saved plan.
+- [x] Skip Terraform Apply when the plan reports no changes.
+- [x] Stop deployment when Terraform Plan fails.
+- [x] Keep PR checks and scheduled jobs from applying infrastructure changes.
+
+## Manual workflow actions
+
+- [x] Add `plan-dev` and `apply-dev`.
+- [x] Add `plan-prod` and `apply-prod`.
+- [x] Allow manual planning without switching to the Apply role.
+- [x] Allow manual PROD actions only from `main`.
+- [x] Allow manual PROD deployment of pending changes without requiring another file change.
+
+## DEV verification before PROD
+
+- [x] Record the shared module version after a successful DEV deployment or no-change verification.
+- [x] Store the verified module hash in `dev/last-applied-modules` in the state bucket.
+- [x] Grant the Apply role permission to write the module-verification record.
+- [x] Grant the Plan role permission to read the module-verification record.
+- [x] Compare the current shared modules with the version verified in DEV before PROD deployment.
+- [x] Block PROD Apply when the module versions differ or the verification record cannot be read.
+- [x] Let `plan-prod` inspect proposed changes without requiring DEV module verification.
+- [x] Allow PROD-only changes without another DEV run when the current modules already match the DEV verification record.
+
+## Scheduled checks
+
+- [x] Add scheduled DEV and PROD drift detection using `terraform plan`.
+- [x] Produce separate DEV and PROD drift summaries.
+- [x] Keep scheduled runs from automatically applying changes.
+- [x] Add scheduled Checkov scans for DEV and PROD.
+- [x] Allow scheduled Checkov scans to run after earlier failures unless the workflow is cancelled.
+
+## Concurrent deployments
+
+- [ ] Configure concurrency controls to prevent overlapping deployments from interfering with Terraform state or the DEV module-verification record.
+- [ ] Keep active Apply operations from being automatically cancelled by newer runs.
+
+## Recovery procedures
+
+- [ ] Document how to inspect a failed Apply and run a fresh plan before retrying.
+- [ ] Document how to restore a known working configuration through a pull request and deployment.
+- [ ] Document how to recover when DEV succeeds but saving its module-verification record fails.
 
 # Phase 19 — Test the Security Controls
 
 ## GitHub repository rules
 
 - [x] Attempt a direct push to `main` and confirm GitHub rejects it because a pull request and `pr-check` are required.
-- [ ] Confirm a pull request cannot merge while `pr-check` is failing.
-- [ ] Confirm a passing `pr-check` allows the pull request to merge under the repository rules.
+- [x] Confirm a pull request cannot merge while `pr-check` is failing.
+- [x] Confirm a passing `pr-check` allows the pull request to merge under the repository rules.
 - [ ] Attempt deployment from an unauthorized branch and confirm the deployment job is blocked or its OIDC role assumption is denied. Record which control blocked it.
 
 ## OIDC role trust
 
-- [ ] Set the Plan role's trusted repository `sub` to an incorrect value; confirm its credential step fails with `sts:AssumeRoleWithWebIdentity`.
-- [ ] Restore the Plan role's correct trust policy and confirm role assumption succeeds.
+- [x] Set the Plan role's trusted repository `sub` to an incorrect value; confirm its credential step fails with `sts:AssumeRoleWithWebIdentity`.
+- [x] Restore the Plan role's correct trust policy and confirm role assumption succeeds.
 - [ ] Set the Apply role's trusted repository `sub` to an incorrect value; run a job that reaches its credential step and confirm role assumption fails.
 - [ ] Restore the Apply role's correct trust policy and confirm role assumption succeeds.
 - [ ] Confirm the Apply role cannot be assumed from a job context outside its allowed `dev` or `prod` environment.
@@ -560,6 +629,23 @@ Do not modularize everything just for the sake of having modules. Use them where
 - [ ] Make a controlled resource change, confirm drift is reported, and restore the resource through the normal deployment path.
 - [ ] Confirm `dev-drift` and `prod-drift` use the Plan role, produce separate summaries, and run no Apply job. Save the job graph and summaries.
 
+## Concurrent deployments
+
+- [ ] Configure concurrency controls to prevent overlapping deployments from interfering with Terraform state or the DEV module-verification record.
+- [ ] Start two deployment runs close together and confirm the concurrency controls work.
+- [ ] Confirm an active Apply is not automatically cancelled by a newer run.
+
+## Recovery procedures
+
+- [ ] Document how to inspect a failed Apply and run a fresh plan before retrying.
+- [ ] Document how to restore a known working configuration through a pull request and deployment.
+- [ ] Document how to recover when DEV succeeds but saving its module-verification record fails.
+- [ ] Test that recovery by rerunning `apply-dev`; confirm a no-change plan can successfully record the verified module version.
+
+## Final verification
+
+- [ ] Complete the remaining Phase 19 security tests and record their results.
+
 For each test, document:
 - Change: Logs bucket uses SSE-S3.
 - Result: Checkov rejected it with CKV_AWS_145, causing pr-check to fail.
@@ -582,15 +668,15 @@ record the workflow-run link, expected result, observed result, and restoration.
 
 ## Current security controls
 
-- [ ] Capture the current Plan and Apply roles' incorrect repository trust policies and matching authentication failures. Link the successful runs after restoring them.
+- [x] Capture the current Plan and Apply roles' incorrect repository trust policies and matching authentication failures. Link the successful runs after restoring them.
 - [x] Capture a failing and passing `pr-check`. Include the Checkov rejection test in the evidence.
-- [ ] Capture the Plan role being denied a representative infrastructure write action.
+- [x] Capture the Plan role being denied a representative infrastructure write action in Policy Simulator
 - [ ] Capture an unauthorized-branch deployment being blocked and identify which control blocked it.
 
 ## Deployment gates
 
-- [ ] Capture a shared-module run showing DEV failed and PROD was skipped.
-- [ ] Capture PROD being blocked because the current modules were not verified in DEV, then capture verification passing after DEV succeeds.
+- [x] Capture a shared-module run showing DEV failed and PROD was skipped.
+- [x] Capture PROD being blocked because the current modules were not verified in DEV, then capture verification passing after DEV succeeds.
 - [ ] Capture a manual plan showing Apply skipped and a manual apply showing successful deployment. Link the corresponding DEV and PROD runs.
 - [ ] Capture the PROD approval gate, if configured. Link the rejected deployment showing no Apply ran.
 
