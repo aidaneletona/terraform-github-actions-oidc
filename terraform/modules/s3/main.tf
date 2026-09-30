@@ -128,6 +128,7 @@ resource "aws_s3_bucket" "logs" {
 
   # checkov:skip=CKV2_AWS_62:Event notifications are not required for the access logs bucket
   # checkov:skip=CKV_AWS_144:Cross-region replication is outside the scope of this development environment
+  # checkov:skip=CKV_AWS_145:S3 server access log destination uses SSE-S3 because this delivery method does not support SSE-KMS
 
   bucket = "${var.demo_bucket}-logs"
 
@@ -139,17 +140,48 @@ resource "aws_s3_bucket" "logs" {
 }
 
 
+resource "aws_s3_bucket_policy" "logs" {
+  bucket = aws_s3_bucket.logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "AllowS3ServerAccessLogs"
+        Effect = "Allow"
+
+        Principal = {
+          Service = "logging.s3.amazonaws.com"
+        }
+
+        Action = "s3:PutObject"
+
+        Resource = "${aws_s3_bucket.logs.arn}/access-logs/*"
+
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = aws_s3_bucket.demo.arn
+          }
+
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      }
+    ]
+  })
+}
+
+
 # Logs Bucket - KMS Encryption
 resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   bucket = aws_s3_bucket.logs.id
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.s3.arn
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "AES256"
     }
-
-    bucket_key_enabled = true
   }
 }
 
@@ -208,4 +240,5 @@ resource "aws_s3_bucket_logging" "demo" {
   bucket        = aws_s3_bucket.demo.id
   target_bucket = aws_s3_bucket.logs.id
   target_prefix = "access-logs/"
+  depends_on    = [aws_s3_bucket_policy.logs]
 }
