@@ -145,6 +145,9 @@ jobs:
         directory: terraform/environments/dev
         framework: terraform
 
+    - name: Clear saved Checkov results
+      run: echo "CHECKOV_RESULTS=" >> "$GITHUB_ENV"
+
     - name: Terraform Plan DEV
       if: |
         steps.terraform_changes.outputs.dev == 'true' ||
@@ -181,6 +184,9 @@ jobs:
         directory: terraform/environments/prod
         framework: terraform
 
+    - name: Clear saved Checkov results
+      run: echo "CHECKOV_RESULTS=" >> "$GITHUB_ENV"
+
     - name: Terraform Plan PROD
       if: |
         steps.terraform_changes.outputs.prod == 'true' ||
@@ -199,6 +205,9 @@ jobs:
       with:
         directory: terraform/modules
         framework: terraform
+
+    - name: Clear saved Checkov results
+      run: echo "CHECKOV_RESULTS=" >> "$GITHUB_ENV"
 
 
     # DEV
@@ -250,6 +259,9 @@ jobs:
         with:
           directory: terraform/environments/dev
           framework: terraform
+
+      - name: Clear saved Checkov results
+        run: echo "CHECKOV_RESULTS=" >> "$GITHUB_ENV"
 
       - name: Terraform Plan
         id: plan
@@ -398,6 +410,9 @@ jobs:
       with:
         directory: terraform/environments/prod
         framework: terraform
+    
+    - name: Clear saved Checkov results
+      run: echo "CHECKOV_RESULTS=" >> "$GITHUB_ENV"
 
     - name: Terraform Plan
       id: plan
@@ -504,6 +519,17 @@ jobs:
             echo "DEV drift check failed." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Checkov Security Scan DEV
+        if: ${{ !cancelled() }}
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/environments/dev
+          framework: terraform
+
+      - name: Clear saved Checkov results
+        if: ${{ !cancelled() }}
+        run: echo "CHECKOV_RESULTS=" >> "$GITHUB_ENV"
+
         
 
 
@@ -563,4 +589,15 @@ jobs:
           else
             echo "PROD drift check failed." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Checkov Security Scan PROD
+        if: ${{ !cancelled() }}
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/environments/prod
+          framework: terraform
+
+      - name: Clear saved Checkov results
+        if: ${{ !cancelled() }}
+        run: echo "CHECKOV_RESULTS=" >> "$GITHUB_ENV"
 

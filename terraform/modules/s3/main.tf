@@ -180,7 +180,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "AES256"
+      sse_algorithm = "AES256"
     }
   }
 }
@@ -240,5 +240,5 @@ resource "aws_s3_bucket_logging" "demo" {
   bucket        = aws_s3_bucket.demo.id
   target_bucket = aws_s3_bucket.logs.id
   target_prefix = "access-logs/"
-  depends_on = [aws_s3_bucket_policy.logs]
+  depends_on    = [aws_s3_bucket_policy.logs]
 }

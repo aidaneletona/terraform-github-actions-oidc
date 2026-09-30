@@ -561,11 +561,11 @@ Do not modularize everything just for the sake of having modules. Use them where
 - [ ] Confirm `dev-drift` and `prod-drift` use the Plan role, produce separate summaries, and run no Apply job. Save the job graph and summaries.
 
 For each test, document:
-- The changed setting or test input.
-- The workflow run, job, and step reached.
-- The expected and observed result.
-- The screenshot or log showing the result.
-- How the working configuration was restored.
+- Change: Logs bucket uses SSE-S3.
+- Result: Checkov rejected it with CKV_AWS_145, causing pr-check to fail.
+- Resolution: Added a documented exception for the access-logs bucket.
+- Retest: pr-check passed.
+- Evidence: [Workflow run](PASTE_RUN_URL_HERE)
 
 # Phase 20 — Logging and Audit Evidence
 
