@@ -576,8 +576,8 @@ Do not modularize everything just for the sake of having modules. Use them where
 
 - [x] Introduce invalid Terraform syntax and confirm validation fails.
 - [x] Introduce bad Terraform formatting and confirm the formatting check fails.
-- [ ] Introduce a temporary Terraform configuration that Checkov rejects; confirm `pr-check` fails, then remove it.
-- [ ] Confirm the restored, valid configuration passes formatting, validation, and Checkov.
+- [x] Introduce a temporary Terraform configuration that Checkov rejects; confirm `pr-check` fails, then remove it.
+- [x] Confirm the restored, valid configuration passes formatting, validation, and Checkov.
 
 ## File-change routing
 
@@ -671,7 +671,7 @@ record the workflow-run link, expected result, observed result, and restoration.
 - [x] Capture the current Plan and Apply roles' incorrect repository trust policies and matching authentication failures. Link the successful runs after restoring them.
 - [x] Capture a failing and passing `pr-check`. Include the Checkov rejection test in the evidence.
 - [x] Capture the Plan role being denied a representative infrastructure write action in Policy Simulator
-- [ ] Capture an unauthorized-branch deployment being blocked and identify which control blocked it.
+- [x] Capture an unauthorized-branch deployment being blocked and identify which control blocked it.
 
 ## Deployment gates
 

@@ -1,10 +1,8 @@
 Individual tests document controls tested separately. Grouped workflow results document multiple failures and fixes encountered across attempts of the same workflow run.
 
-
-
 # Grouped Tests
 
-## Tests from `Manual prod` #163
+## Tests from `Manual prod #163` pull request 
 
 ### Checkov rejection test
 - Change: Logs bucket uses SSE-S3.
@@ -22,7 +20,9 @@ Individual tests document controls tested separately. Grouped workflow results d
 - Retest: `Terraform Format Check MODULES` passed and PR passed.
 - Evidence: [Failed Workflow run](https://github.com/aidaneletona/terraform-github-actions-oidc/actions/runs/36621338518/job/109587208810?pr=22) [Succesful Workflow Run](https://github.com/aidaneletona/terraform-github-actions-oidc/actions/runs/36704886274)
 
-## Tests from `Merge pull request #22 from aidaneletona/manual-prod` #164
+## Tests from `Merge pull request #22 from aidaneletona/manual-prod #164`post-merge deployment 
+
+This run includes an intentional OIDC trust-policy test and S3 permission issues discovered during deployment.
 
 ### Incorrect repository in apply role Trust Policy
 
@@ -50,7 +50,15 @@ Individual tests document controls tested separately. Grouped workflow results d
 
 # Individual Tests
 
+
+Individual tests document controls tested separately. Grouped workflow results document multiple failures and fixes encountered across attempts of the same workflow run.
+
 ### Incorrect repository in apply role Trust Policy
 
+- Change: Incorrect repository name under `sub` in IAM apply role. 
+- Result: Received `Error: Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity`. Dev job could not run.
+- Resolution: Restore the correct repository credentials back in trust policy. 
+- Retest:  Dev job ran and succesfully Terraform planned.
+- Evidence: [Failed workflow run](https://github.com/aidaneletona/terraform-github-actions-oidc/actions/runs/36722214029)[Succesful Workflow Run](https://github.com/aidaneletona/terraform-github-actions-oidc/actions/runs/36722214029)
 
 
