@@ -27,7 +27,7 @@ on:
 permissions:
   id-token: write
   contents: read
-  pull requests: read
+  pull-requests: read
 
 concurrency:
   group: terraform-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
